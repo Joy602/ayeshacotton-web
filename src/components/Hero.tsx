@@ -65,15 +65,17 @@ export const Hero: React.FC<HeroProps> = ({ onShopClick }) => {
         </div>
 
         {/* Right Hero Image Card */}
-        <figure className="relative h-64 min-[400px]:h-80 sm:h-[400px] md:h-[480px] lg:h-[500px] rounded-2xl sm:rounded-[2rem] overflow-hidden shadow-xl border border-[#ede8e4] group m-0">
+        <figure className="relative h-[320px] min-[400px]:h-[380px] sm:h-[440px] md:h-[500px] lg:h-[530px] rounded-2xl sm:rounded-[2.2rem] overflow-hidden shadow-xl border border-[#ede8e4] group m-0">
           <OptimizedImage
             alt="Ayesha Cotton - Elegant model wearing luxury pastel blush pink and gold stitched 3-piece lawn suit with pure chiffon dupatta"
-            className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
+            className="w-full h-full"
+            imgClassName="group-hover:scale-105 duration-700 transition-transform"
+            objectPosition="object-[center_8%]"
             aspectRatio="h-full w-full"
             isHero={true}
             src="https://lh3.googleusercontent.com/aida-public/AB6AXuBAuGd514PKxhQWzGKU_gYiKaDFBRgCkQl6vFz3eoVQ30i-BucqfD3qlp-9keCC7zKr70G1o72bQLnprxsZ7eZ4VlyL5lniqZRSqvufB2Us7xl7J3Gqefk9MPh-lUHhPWz1d7PcX4O3JR9mEIavNZrEAEHKhJfShY_S50buOKsEalL_9o7TesK5tNlzTpU0SOX_6GKBGZhZv5SP0fHUvK5GJgqbi9UF7ci532uR7LXC-ARf1rdTTEZt"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/10 pointer-events-none" />
           
           <figcaption className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 bg-white/95 backdrop-blur-md p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-[#ede8e4] flex items-center justify-between shadow-lg">
             <div>
