@@ -6,6 +6,8 @@ interface OptimizedImageProps extends React.ImgHTMLAttributes<HTMLImageElement> 
   aspectRatio?: string;
   isHero?: boolean;
   className?: string;
+  imgClassName?: string;
+  objectPosition?: string;
 }
 
 export const OptimizedImage: React.FC<OptimizedImageProps> = ({
@@ -14,6 +16,8 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
   aspectRatio = 'aspect-[3/4]',
   isHero = false,
   className = '',
+  imgClassName = '',
+  objectPosition = 'object-top',
   ...props
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -42,7 +46,7 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
         onLoad={() => setIsLoaded(true)}
         onError={() => setHasError(true)}
         itemProp="contentUrl"
-        className={`w-full h-full object-cover transition-all duration-700 ${
+        className={`w-full h-full object-cover transition-all duration-700 ${objectPosition} ${imgClassName} ${
           isLoaded ? 'opacity-100 scale-100 blur-0' : 'opacity-0 scale-105 blur-xs'
         }`}
         {...props}
