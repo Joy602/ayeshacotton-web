@@ -188,7 +188,7 @@ Please confirm order placement. Thank you!`;
     } catch (e) {}
 
     // 3. Construct WhatsApp URL and open it
-    let cleanNumber = (settings.whatsappNumber || '01783769261').replace(/[^0-9]/g, '');
+    let cleanNumber = (settings.whatsappNumber || '01712679721').replace(/[^0-9]/g, '');
     if (cleanNumber.startsWith('01')) {
       cleanNumber = '88' + cleanNumber;
     } else if (cleanNumber.length === 10 && cleanNumber.startsWith('1')) {

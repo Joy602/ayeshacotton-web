@@ -242,10 +242,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 onClick={() => onOpenAuth('login')}
                 className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-full bg-[#f6f4f2] hover:bg-[#ede8e4] text-[#1b1c1c] text-xs font-bold transition-all border border-[#e4e0dc] cursor-pointer shadow-xs"
-                title="Customer Login / Register"
+                title="লগইন বা রেজিস্ট্রেশন করুন"
               >
                 <User className="w-3.5 h-3.5 text-[#745663]" />
-                <span className="hidden sm:inline">Sign In</span>
+                <span>লগইন</span>
               </button>
             )}
           </div>

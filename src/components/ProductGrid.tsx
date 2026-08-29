@@ -200,15 +200,8 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                   </div>
                 </div>
 
-                {/* Product Info */}
-                <div className="flex flex-col gap-0.5 sm:gap-1">
-                  <div className="flex items-center justify-between text-[10px] sm:text-xs text-[#8f8287]">
-                    <span>{product.fabricDetails || 'Luxury Fabric'}</span>
-                    <span className={product.stock > 0 ? 'text-[#006d2f] font-semibold' : 'text-[#ba1a1a] font-semibold'}>
-                      {product.stock > 0 ? `In Stock (${product.stock})` : 'Sold Out'}
-                    </span>
-                  </div>
-
+                {/* Product Info - Minimalist Title & Price */}
+                <div className="flex flex-col gap-1 pt-0.5">
                   <h3
                     onClick={() => onViewDetails(product)}
                     itemProp="name"
@@ -236,16 +229,16 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
               <div className="grid grid-cols-2 gap-1.5 sm:gap-2 mt-3 pt-2 border-t border-[#f5f2f0]">
                 <button
                   onClick={() => onAddToCart(product)}
-                  className="py-2 sm:py-2.5 px-2 rounded-xl border border-[#e4e0dc] text-[#53434b] text-[11px] sm:text-xs font-semibold hover:bg-[#f6f4f2] hover:text-[#1b1c1c] transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                  className="py-2 sm:py-2.5 px-2 rounded-xl border border-[#e4e0dc] text-[#53434b] text-[11px] sm:text-xs font-semibold hover:bg-[#f6f4f2] hover:text-[#1b1c1c] transition-colors flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap"
                 >
-                  <ShoppingBag className="w-3.5 h-3.5 text-[#745663]" />
-                  <span>Add</span>
+                  <ShoppingBag className="w-3.5 h-3.5 text-[#745663] shrink-0" />
+                  <span className="truncate">Add</span>
                 </button>
                 <button
                   onClick={() => onBuyNow(product)}
-                  className="py-2 sm:py-2.5 px-2 sm:px-3 rounded-xl bg-[#745663] hover:bg-[#5c434e] text-white text-[11px] sm:text-xs font-bold transition-all shadow-2xs cursor-pointer text-center"
+                  className="py-2 sm:py-2.5 px-2 sm:px-3 rounded-xl bg-[#745663] hover:bg-[#5c434e] text-white text-[11px] sm:text-xs font-bold transition-all shadow-2xs cursor-pointer text-center whitespace-nowrap"
                 >
-                  Buy Now
+                  <span className="truncate">Order Now</span>
                 </button>
               </div>
             </article>
