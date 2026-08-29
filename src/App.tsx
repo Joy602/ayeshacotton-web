@@ -32,7 +32,34 @@ export function App() {
   // Persistence with localStorage
   const [products, setProducts] = useState<Product[]>(() => {
     const saved = localStorage.getItem('ayesha_cotton_products');
-    return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
+    if (saved) {
+      try {
+        const parsed: Product[] = JSON.parse(saved);
+        // Exclude deleted products like prod-11
+        const activeParsed = parsed.filter((p) => p.id !== 'prod-11');
+        // Seamlessly update/merge with INITIAL_PRODUCTS
+        const initialMap = new Map(INITIAL_PRODUCTS.map((p) => [p.id, p]));
+        const updated = activeParsed.map((p) => {
+          if (initialMap.has(p.id)) {
+            const initP = initialMap.get(p.id)!;
+            return {
+              ...p,
+              imageUrl: initP.imageUrl,
+              description: initP.description,
+              fabricDetails: initP.fabricDetails || p.fabricDetails,
+              pieces: initP.pieces || p.pieces,
+            };
+          }
+          return p;
+        });
+        const existingIds = new Set(updated.map((p) => p.id));
+        const missing = INITIAL_PRODUCTS.filter((p) => !existingIds.has(p.id));
+        return [...updated, ...missing];
+      } catch (e) {
+        return INITIAL_PRODUCTS;
+      }
+    }
+    return INITIAL_PRODUCTS;
   });
 
   const [orders, setOrders] = useState<Order[]>(() => {
@@ -143,7 +170,10 @@ export function App() {
         ]);
         if (isMounted) {
           if (liveProducts && liveProducts.length > 0) {
-            setProducts(liveProducts);
+            const filteredLive = liveProducts.filter((p) => p.id !== 'prod-11');
+            const liveIds = new Set(filteredLive.map((p) => p.id));
+            const missing = INITIAL_PRODUCTS.filter((p) => !liveIds.has(p.id));
+            setProducts([...filteredLive, ...missing]);
           }
           if (liveOrders && liveOrders.length > 0) {
             setOrders(liveOrders);
