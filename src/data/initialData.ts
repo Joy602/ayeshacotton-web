@@ -292,7 +292,7 @@ export const INITIAL_CUSTOMERS: Customer[] = [
 export const INITIAL_SETTINGS: StoreSettings = {
   storeName: 'Ayesha Cotton',
   currencySymbol: '৳',
-  whatsappNumber: '+8801783769261',
+  whatsappNumber: '+8801712679721',
   whatsappGreeting: 'Hello Ayesha Cotton! I would like to place an order for the following items:',
   shippingFee: 120,
   freeShippingThreshold: 5000,

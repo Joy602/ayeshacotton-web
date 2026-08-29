@@ -50,8 +50,12 @@ export function App() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (parsed.whatsappNumber === '+8801700000000' || !parsed.whatsappNumber) {
-          return { ...parsed, whatsappNumber: '+8801783769261' };
+        if (
+          parsed.whatsappNumber === '+8801700000000' ||
+          parsed.whatsappNumber === '+8801783769261' ||
+          !parsed.whatsappNumber
+        ) {
+          return { ...parsed, whatsappNumber: '+8801712679721' };
         }
         return parsed;
       } catch (e) {
@@ -96,6 +100,7 @@ export function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [authModalInitialMode, setAuthModalInitialMode] = useState<'login' | 'register'>('login');
   const [authPurposeMessage, setAuthPurposeMessage] = useState<string | undefined>(undefined);
+  const [notificationMessage, setNotificationMessage] = useState<string | null>(null);
 
   // Sync to localStorage
   useEffect(() => {
@@ -205,7 +210,7 @@ export function App() {
   const handleAttemptAdminAccess = () => {
     const ADMIN_EMAIL = 'abranjoy2@gmail.com';
     if (!currentUser) {
-      setAuthPurposeMessage('Admin panel is restricted. Please login with admin credentials (abranjoy2@gmail.com).');
+      setAuthPurposeMessage('অ্যাডমিন প্যানেল সুরক্ষিত। অনুগ্রহ করে অ্যাডমিন অ্যাকাউন্টে লগইন করুন।');
       setAuthModalInitialMode('login');
       setIsAuthModalOpen(true);
       return;
@@ -214,7 +219,8 @@ export function App() {
     if (currentUser.email?.toLowerCase().trim() === ADMIN_EMAIL) {
       setIsAdminView((prev) => !prev);
     } else {
-      alert(`Access denied. Only the official admin account (${ADMIN_EMAIL}) has access to the Admin Dashboard.`);
+      setNotificationMessage('অ্যাডমিন প্যানেলে প্রবেশের অনুমতি শুধুমাত্র অথোরাইজড অ্যাডমিন অ্যাকাউন্টের জন্য সংরক্ষিত।');
+      setTimeout(() => setNotificationMessage(null), 4000);
     }
   };
 
@@ -483,6 +489,14 @@ export function App() {
         }}
         purposeMessage={authPurposeMessage}
       />
+
+      {/* Toast Notification Banner */}
+      {notificationMessage && (
+        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 max-w-[90vw] sm:max-w-md bg-[#1b1c1c] text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border border-white/10 animate-in fade-in slide-in-from-bottom-3 duration-200">
+          <span className="text-sm">ℹ️</span>
+          <p className="text-xs font-medium leading-relaxed">{notificationMessage}</p>
+        </div>
+      )}
     </div>
   );
 }

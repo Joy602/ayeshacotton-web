@@ -214,7 +214,7 @@ Please confirm availability and dispatch schedule. Thank you!`;
     }
 
     // 4. Construct the WhatsApp URL and open it
-    let cleanWhatsApp = (settings.whatsappNumber || '01783769261').replace(/[^0-9]/g, '');
+    let cleanWhatsApp = (settings.whatsappNumber || '01712679721').replace(/[^0-9]/g, '');
     if (cleanWhatsApp.startsWith('01')) {
       cleanWhatsApp = '88' + cleanWhatsApp;
     } else if (cleanWhatsApp.length === 10 && cleanWhatsApp.startsWith('1')) {
