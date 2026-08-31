@@ -13,6 +13,8 @@ import {
   updateOrderStatusInSupabase,
   deleteOrderFromSupabase,
   syncCustomerOrderStatsInSupabase,
+  saveProductToSupabase,
+  deleteProductFromSupabase,
 } from './lib/supabase';
 import { SEOHead } from './components/seo/SEOHead';
 import { Navbar } from './components/Navbar';
@@ -190,6 +192,29 @@ export function App() {
       isMounted = false;
     };
   }, []);
+
+  // Product update & sync with Supabase
+  const handleUpdateProducts = async (newProducts: Product[]) => {
+    setProducts(newProducts);
+    // Find newly added or updated product to sync with Supabase
+    try {
+      for (const p of newProducts) {
+        // Asynchronously sync
+        saveProductToSupabase(p);
+      }
+    } catch (e) {
+      console.warn('Failed to sync product to Supabase:', e);
+    }
+  };
+
+  const handleDeleteProduct = async (productId: string) => {
+    setProducts((prev) => prev.filter((p) => p.id !== productId));
+    try {
+      await deleteProductFromSupabase(productId);
+    } catch (e) {
+      console.warn('Failed to delete product from Supabase:', e);
+    }
+  };
 
   // Update order status with Supabase syncing
   const handleUpdateOrderStatus = async (orderId: string, status: Order['status']) => {
@@ -407,7 +432,7 @@ export function App() {
           orders={orders}
           customers={customers}
           settings={settings}
-          onUpdateProducts={setProducts}
+          onUpdateProducts={handleUpdateProducts}
           onUpdateOrders={setOrders}
           onUpdateOrderStatus={handleUpdateOrderStatus}
           onDeleteOrder={handleDeleteOrder}

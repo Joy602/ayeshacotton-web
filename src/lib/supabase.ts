@@ -16,6 +16,51 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
  * into the standard application Product interface.
  */
 export function normalizeProduct(row: any): Product {
+  // Parse images array and cover image
+  let parsedImages: string[] = [];
+  let coverImageUrl = '';
+
+  if (Array.isArray(row.images)) {
+    parsedImages = row.images.filter(Boolean);
+  } else if (typeof row.images === 'string') {
+    try {
+      const parsed = JSON.parse(row.images);
+      if (Array.isArray(parsed)) {
+        parsedImages = parsed.filter(Boolean);
+      }
+    } catch {
+      parsedImages = [row.images];
+    }
+  }
+
+  const rawImageUrl = row.image_url || row.imageUrl || row.image;
+  if (rawImageUrl) {
+    if (typeof rawImageUrl === 'string' && rawImageUrl.startsWith('[') && rawImageUrl.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(rawImageUrl);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          if (parsedImages.length === 0) {
+            parsedImages = parsed.filter(Boolean);
+          }
+        }
+      } catch {
+        // Use as regular string
+      }
+    }
+    if (!coverImageUrl) {
+      coverImageUrl = parsedImages.length > 0 ? parsedImages[0] : (typeof rawImageUrl === 'string' && !rawImageUrl.startsWith('[') ? rawImageUrl : '');
+    }
+  }
+
+  if (parsedImages.length === 0 && coverImageUrl) {
+    parsedImages = [coverImageUrl];
+  } else if (parsedImages.length > 0 && !coverImageUrl) {
+    coverImageUrl = parsedImages[0];
+  }
+
+  const finalCover = coverImageUrl || 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80';
+  const finalImages = parsedImages.length > 0 ? parsedImages : [finalCover];
+
   return {
     id: String(row.id || row.product_id || `prod-${Date.now()}`),
     name: String(row.name || row.title || 'Luxury 3-Piece Suit'),
@@ -25,7 +70,8 @@ export function normalizeProduct(row: any): Product {
     price: Number(row.price || row.unit_price || 0),
     originalPrice: row.original_price ?? row.originalPrice ?? undefined,
     stock: typeof row.stock === 'number' ? row.stock : (row.stock_quantity ?? 15),
-    imageUrl: row.image_url || row.imageUrl || row.image || 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80',
+    imageUrl: finalCover,
+    images: finalImages,
     badge: row.badge || undefined,
     description: String(row.description || ''),
     fabricDetails: row.fabric_details || row.fabricDetails || row.fabric || undefined,
@@ -44,7 +90,8 @@ export async function fetchProductsFromSupabase(): Promise<Product[] | null> {
   try {
     const { data, error } = await supabase
       .from('products')
-      .select('*');
+      .select('*')
+      .order('created_at', { ascending: false });
 
     if (error) {
       console.warn('Supabase products fetch warning:', error.message);
@@ -58,6 +105,101 @@ export async function fetchProductsFromSupabase(): Promise<Product[] | null> {
   } catch (err) {
     console.warn('Error fetching from Supabase products:', err);
     return null;
+  }
+}
+
+/**
+ * Saves or updates a product in the Supabase 'products' table,
+ * automatically storing multi-images as JSON in the image_url column or native column.
+ */
+export async function saveProductToSupabase(product: Product): Promise<{ success: boolean; data?: any; error?: any }> {
+  try {
+    const imagesToStore = product.images && product.images.length > 0
+      ? product.images
+      : (product.imageUrl ? [product.imageUrl] : []);
+
+    const productRow: Record<string, any> = {
+      title: product.name,
+      category: product.category,
+      price: product.price,
+      image_url: imagesToStore.length > 1 ? JSON.stringify(imagesToStore) : (product.imageUrl || imagesToStore[0] || null),
+    };
+
+    // If product has an existing uuid from database, update it
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(product.id);
+    if (isUuid) {
+      const { data, error } = await supabase
+        .from('products')
+        .update(productRow)
+        .eq('id', product.id)
+        .select();
+      if (!error && data && data.length > 0) {
+        return { success: true, data: data[0] };
+      }
+    }
+
+    // Otherwise check if product with same title exists
+    const { data: existing } = await supabase
+      .from('products')
+      .select('id')
+      .eq('title', product.name)
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      const { data, error } = await supabase
+        .from('products')
+        .update(productRow)
+        .eq('id', existing[0].id)
+        .select();
+      if (!error && data && data.length > 0) {
+        return { success: true, data: data[0] };
+      }
+    }
+
+    // Otherwise insert new
+    const { data, error } = await supabase
+      .from('products')
+      .insert([productRow])
+      .select();
+
+    if (error) {
+      console.warn('[Supabase] Product save note:', error.message);
+      return { success: false, error };
+    }
+    return { success: true, data: data?.[0] };
+  } catch (err) {
+    console.error('[Supabase] Error saving product:', err);
+    return { success: false, error: err };
+  }
+}
+
+/**
+ * Deletes a product from the Supabase 'products' table.
+ */
+export async function deleteProductFromSupabase(productIdOrName: string): Promise<{ success: boolean; error?: any }> {
+  try {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productIdOrName);
+    if (isUuid) {
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', productIdOrName);
+      if (!error) return { success: true };
+    }
+
+    const { error } = await supabase
+      .from('products')
+      .delete()
+      .eq('title', productIdOrName);
+
+    if (error) {
+      console.warn('[Supabase] Product delete error:', error.message);
+      return { success: false, error };
+    }
+    return { success: true };
+  } catch (err) {
+    console.error('[Supabase] Error deleting product:', err);
+    return { success: false, error: err };
   }
 }
 
