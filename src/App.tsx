@@ -43,11 +43,10 @@ export function App() {
           if (initialMap.has(p.id)) {
             const initP = initialMap.get(p.id)!;
             return {
+              ...initP,
               ...p,
-              imageUrl: initP.imageUrl,
-              description: initP.description,
-              fabricDetails: initP.fabricDetails || p.fabricDetails,
-              pieces: initP.pieces || p.pieces,
+              imageUrl: p.imageUrl || initP.imageUrl,
+              images: (p.images && p.images.length > 0) ? p.images : (initP.images || [p.imageUrl || initP.imageUrl]),
             };
           }
           return p;

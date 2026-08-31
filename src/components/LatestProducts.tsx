@@ -1,7 +1,8 @@
 import React from 'react';
 import { Product } from '../types';
-import { ShoppingBag, Eye, Sparkles } from 'lucide-react';
+import { ShoppingBag, Eye, Sparkles, Layers } from 'lucide-react';
 import { OptimizedImage } from './common/OptimizedImage';
+import { formatPrice } from '../lib/formatters';
 
 interface LatestProductsProps {
   products: Product[];
@@ -65,6 +66,14 @@ export const LatestProducts: React.FC<LatestProductsProps> = ({
                   {product.badge || product.category}
                 </div>
 
+                {/* Multiple Images Indicator Badge */}
+                {product.images && product.images.length > 1 && (
+                  <div className="absolute bottom-1.5 left-1.5 sm:bottom-2.5 sm:left-2.5 bg-black/60 backdrop-blur-xs text-white text-[8px] sm:text-[10px] font-semibold px-1.5 sm:px-2 py-0.5 rounded-full flex items-center gap-1 shadow-2xs">
+                    <Layers className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                    <span>{product.images.length}টি ছবি</span>
+                  </div>
+                )}
+
                 {/* Overlay Quick Actions */}
                 <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-1.5 sm:gap-2 backdrop-blur-[1px]">
                   <button
@@ -106,11 +115,11 @@ export const LatestProducts: React.FC<LatestProductsProps> = ({
                   <meta itemProp="priceCurrency" content="BDT" />
                   <meta itemProp="price" content={String(product.price)} />
                   <p className="text-xs sm:text-base md:text-lg font-bold text-[#745663] font-playfair">
-                    {currencySymbol}{product.price.toLocaleString()}
+                    {formatPrice(product.price, currencySymbol)}
                   </p>
                   {product.originalPrice && (
                     <p className="text-[10px] sm:text-xs text-[#8f8287] line-through font-sans-body">
-                      {currencySymbol}{product.originalPrice.toLocaleString()}
+                      {formatPrice(product.originalPrice, currencySymbol)}
                     </p>
                   )}
                 </div>

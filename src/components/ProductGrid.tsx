@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Product } from '../types';
-import { ShoppingBag, Eye, SlidersHorizontal } from 'lucide-react';
+import { ShoppingBag, Eye, SlidersHorizontal, Layers } from 'lucide-react';
 import { OptimizedImage } from './common/OptimizedImage';
+import { formatPrice } from '../lib/formatters';
 
 interface ProductGridProps {
   products: Product[];
@@ -166,6 +167,14 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                     {product.badge || product.category}
                   </div>
 
+                  {/* Multiple Images Indicator Badge */}
+                  {product.images && product.images.length > 1 && (
+                    <div className="absolute bottom-1.5 left-1.5 sm:bottom-2.5 sm:left-2.5 bg-black/60 backdrop-blur-xs text-white text-[8px] sm:text-[10px] font-semibold px-1.5 sm:px-2 py-0.5 rounded-full flex items-center gap-1 shadow-2xs">
+                      <Layers className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                      <span>{product.images.length}টি ছবি</span>
+                    </div>
+                  )}
+
                   {/* Stock Indicator if Low */}
                   {product.stock <= 5 && product.stock > 0 && (
                     <div className="absolute top-1.5 right-1.5 sm:top-2.5 sm:right-2.5 bg-[#fef2f2] border border-[#fecaca] text-[#b91c1c] text-[8px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full shadow-2xs">
@@ -214,11 +223,11 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                     <meta itemProp="priceCurrency" content="BDT" />
                     <meta itemProp="price" content={String(product.price)} />
                     <p className="text-xs sm:text-base md:text-lg font-bold text-[#745663] font-playfair">
-                      {currencySymbol}{product.price.toLocaleString()}
+                      {formatPrice(product.price, currencySymbol)}
                     </p>
                     {product.originalPrice && (
                       <p className="text-[10px] sm:text-xs text-[#8f8287] line-through font-sans-body">
-                        {currencySymbol}{product.originalPrice.toLocaleString()}
+                        {formatPrice(product.originalPrice, currencySymbol)}
                       </p>
                     )}
                   </div>

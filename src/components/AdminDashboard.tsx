@@ -19,9 +19,16 @@ import {
   Check,
   Mail,
   AlertCircle,
+  Image as ImageIcon,
+  Upload,
+  Star,
+  Layers,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 import { OptimizedImage } from './common/OptimizedImage';
 import { getEmailJsConfig, saveEmailJsConfig, EmailJsConfig } from '../lib/emailService';
+import { formatPrice } from '../lib/formatters';
 
 interface AdminDashboardProps {
   products: Product[];
@@ -56,6 +63,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>('All');
   const [actionNotice, setActionNotice] = useState<string | null>(null);
 
+  // Gallery URL input temp states
+  const [newAddImageUrl, setNewAddImageUrl] = useState('');
+  const [editImageUrlInput, setEditImageUrlInput] = useState('');
+
   // EmailJS Settings state
   const [emailConfig, setEmailConfig] = useState<EmailJsConfig>(getEmailJsConfig());
   const [emailConfigSaved, setEmailConfigSaved] = useState(false);
@@ -68,7 +79,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   // Form state for new product
-  const [newProduct, setNewProduct] = useState<Partial<Product>>({
+  const [newProduct, setNewProduct] = useState<Partial<Product> & { images: string[] }>({
     name: '',
     category: 'Stitched',
     price: 0,
@@ -76,6 +87,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     stock: 10,
     sku: `AC-${Math.floor(1000 + Math.random() * 9000)}`,
     imageUrl: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=80',
+    images: ['https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=80'],
     description: '',
     fabricDetails: 'Swiss lawn shirt with pure chiffon dupatta',
     pieces: '3-Piece',
@@ -92,6 +104,41 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const pendingOrdersCount = orders.filter((o) => o.status === 'Pending').length;
   const lowStockCount = products.filter((p) => p.stock <= 3).length;
 
+  // File upload reader
+  const handleLocalImageUpload = (files: FileList | null, isEdit: boolean) => {
+    if (!files || files.length === 0) return;
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        if (!result) return;
+        if (isEdit) {
+          setEditingProduct((prev) => {
+            if (!prev) return prev;
+            const currentImgs = prev.images && prev.images.length > 0 ? [...prev.images] : [prev.imageUrl];
+            const updated = [...currentImgs, result];
+            return {
+              ...prev,
+              imageUrl: updated[0],
+              images: updated,
+            };
+          });
+        } else {
+          setNewProduct((prev) => {
+            const currentImgs = prev.images && prev.images.length > 0 ? [...prev.images] : (prev.imageUrl ? [prev.imageUrl] : []);
+            const updated = [...currentImgs, result];
+            return {
+              ...prev,
+              imageUrl: updated[0],
+              images: updated,
+            };
+          });
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
   // Handlers for products
   const handleCreateProduct = (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,6 +146,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       alert('Please fill product name and price.');
       return;
     }
+
+    const finalImages = newProduct.images && newProduct.images.length > 0
+      ? newProduct.images
+      : (newProduct.imageUrl ? [newProduct.imageUrl] : ['https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=80']);
 
     const created: Product = {
       id: `prod-${Date.now()}`,
@@ -108,7 +159,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       originalPrice: newProduct.originalPrice ? Number(newProduct.originalPrice) : undefined,
       stock: Number(newProduct.stock) || 10,
       sku: newProduct.sku || `AC-${Math.floor(1000 + Math.random() * 9000)}`,
-      imageUrl: newProduct.imageUrl || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=80',
+      imageUrl: finalImages[0],
+      images: finalImages,
       description: newProduct.description || 'Artisanal 3-piece luxury collection.',
       fabricDetails: newProduct.fabricDetails || 'Pure cotton lawn',
       pieces: newProduct.pieces || '3-Piece',
@@ -125,18 +177,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       stock: 10,
       sku: `AC-${Math.floor(1000 + Math.random() * 9000)}`,
       imageUrl: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=80',
+      images: ['https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=80'],
       description: '',
       fabricDetails: 'Swiss lawn shirt with pure chiffon dupatta',
       pieces: '3-Piece',
       isLatest: true,
     });
+    setNewAddImageUrl('');
+    showNotice(`"${created.name}" সফলভাবে যুক্ত করা হয়েছে!`);
   };
 
   const handleUpdateProduct = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProduct) return;
-    onUpdateProducts(products.map((p) => (p.id === editingProduct.id ? editingProduct : p)));
+
+    const finalImages = editingProduct.images && editingProduct.images.length > 0
+      ? editingProduct.images
+      : (editingProduct.imageUrl ? [editingProduct.imageUrl] : []);
+
+    const updatedProduct: Product = {
+      ...editingProduct,
+      imageUrl: finalImages[0] || editingProduct.imageUrl,
+      images: finalImages,
+    };
+
+    onUpdateProducts(products.map((p) => (p.id === updatedProduct.id ? updatedProduct : p)));
     setEditingProduct(null);
+    setEditImageUrlInput('');
+    showNotice(`"${updatedProduct.name}" সফলভাবে আপডেট করা হয়েছে!`);
   };
 
   const handleDeleteProduct = (id: string) => {
@@ -283,7 +351,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </div>
                 </div>
                 <p className="font-playfair text-2xl md:text-3xl font-bold text-[#1b1c1c]">
-                  {settings.currencySymbol}{totalRevenue.toLocaleString()}
+                  {formatPrice(totalRevenue, settings.currencySymbol)}
                 </p>
                 <p className="text-[11px] text-emerald-700 mt-1 font-semibold">
                   From {orders.filter((o) => o.status !== 'Cancelled').length} confirmed orders
@@ -383,7 +451,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             {order.items.map((i) => `${i.productName} (x${i.quantity})`).join(', ')}
                           </td>
                           <td className="py-3 px-3 font-bold text-[#745663]">
-                            {settings.currencySymbol}{order.totalAmount.toLocaleString()}
+                            {formatPrice(order.totalAmount, settings.currencySymbol)}
                           </td>
                           <td className="py-3 px-3">
                             {/* Live status change dropdown */}
@@ -501,16 +569,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         <tr key={product.id} className="hover:bg-[#fcfbfa] transition-colors">
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-3">
-                              <div className="w-12 h-14 bg-[#f2eeeb] rounded-lg overflow-hidden shrink-0 border border-[#ede8e4]">
+                              <div className="relative w-12 h-14 bg-[#f2eeeb] rounded-lg overflow-hidden shrink-0 border border-[#ede8e4] shadow-2xs">
                                 <OptimizedImage
                                   src={product.imageUrl}
                                   alt={product.name}
                                   aspectRatio="h-full w-full"
                                 />
+                                {product.images && product.images.length > 1 && (
+                                  <span className="absolute bottom-0 right-0 bg-black/75 text-[8px] font-bold text-white px-1 rounded-tl-sm">
+                                    {product.images.length}📸
+                                  </span>
+                                )}
                               </div>
                               <div>
                                 <p className="font-semibold text-sm text-[#1b1c1c]">{product.name}</p>
-                                <p className="text-[10px] text-[#8f8287]">{product.pieces} • {product.fabricDetails}</p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <p className="text-[10px] text-[#8f8287]">{product.pieces} • {product.fabricDetails}</p>
+                                  {product.images && product.images.length > 1 ? (
+                                    <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-[#745663] bg-[#fdebf3] px-1.5 py-0.2 rounded-full border border-[#fcd4e4]">
+                                      <Layers className="w-2.5 h-2.5" />
+                                      {product.images.length}টি ছবি
+                                    </span>
+                                  ) : (
+                                    <span className="text-[9px] text-[#8f8287]">১টি ছবি</span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </td>
@@ -520,7 +603,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             </span>
                           </td>
                           <td className="py-3 px-4 font-bold text-[#745663]">
-                            {settings.currencySymbol}{product.price.toLocaleString()}
+                            {formatPrice(product.price, settings.currencySymbol)}
                           </td>
                           <td className="py-3 px-4">
                             <span
@@ -537,9 +620,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           <td className="py-3 px-4 text-right">
                             <div className="flex items-center justify-end gap-2">
                               <button
-                                onClick={() => setEditingProduct(product)}
+                                onClick={() => {
+                                  setEditingProduct({
+                                    ...product,
+                                    images: product.images && product.images.length > 0 ? [...product.images] : [product.imageUrl],
+                                  });
+                                  setEditImageUrlInput('');
+                                }}
                                 className="p-1.5 rounded-lg text-[#53434b] hover:text-[#1b1c1c] hover:bg-[#f6f4f2] transition-colors cursor-pointer"
-                                title="Edit Product"
+                                title="Edit Product & Gallery Images"
                               >
                                 <Edit2 className="w-4 h-4" />
                               </button>
@@ -622,7 +711,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ))}
                           </td>
                           <td className="py-3 px-4 font-bold text-[#745663]">
-                            {settings.currencySymbol}{order.totalAmount.toLocaleString()}
+                            {formatPrice(order.totalAmount, settings.currencySymbol)}
                           </td>
                           <td className="py-3 px-4">
                             <select
@@ -976,15 +1065,144 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
               </div>
 
-              <div>
-                <label className="block font-semibold text-[#1b1c1c] mb-1">Image URL</label>
-                <input
-                  type="text"
-                  value={newProduct.imageUrl}
-                  onChange={(e) => setNewProduct({ ...newProduct, imageUrl: e.target.value })}
-                  placeholder="https://..."
-                  className="w-full bg-[#f6f4f2] border border-[#e4e0dc] focus:border-[#745663] focus:bg-white rounded-xl px-3 py-2 text-[#1b1c1c] focus:outline-none"
-                />
+              {/* Multi-Image Gallery Section */}
+              <div className="bg-[#fcfbfa] border border-[#ede8e4] rounded-2xl p-3.5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <ImageIcon className="w-4 h-4 text-[#745663]" />
+                    <span className="font-bold text-xs text-[#1b1c1c]">প্রোডাক্ট ইমেজ গ্যালারি (২-৩টি ছবি)</span>
+                  </div>
+                  <span className="text-[10px] bg-[#fdebf3] text-[#745663] font-bold px-2 py-0.5 rounded-full border border-[#fcd4e4]">
+                    {newProduct.images.length}টি ছবি সংযুক্ত
+                  </span>
+                </div>
+
+                <p className="text-[10px] text-[#8f8287] leading-relaxed">
+                  কাস্টমার প্রোডাক্ট ডিটেইলসে ২-৩টি ছবির স্লাইডার দেখতে পাবেন। <strong>প্রথম ছবিটি মূল কভার (Cover) হিসেবে প্রদর্শিত হবে।</strong>
+                </p>
+
+                {/* Current Images List Grid */}
+                {newProduct.images.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2 pt-1">
+                    {newProduct.images.map((imgUrl, idx) => (
+                      <div
+                        key={idx}
+                        className={`relative rounded-xl overflow-hidden border ${
+                          idx === 0 ? 'border-amber-400 ring-2 ring-amber-400/30' : 'border-[#e4e0dc]'
+                        } bg-white group shadow-2xs`}
+                      >
+                        <div className="h-24 w-full bg-[#f6f4f2]">
+                          <OptimizedImage
+                            src={imgUrl}
+                            alt={`Photo ${idx + 1}`}
+                            aspectRatio="h-full w-full"
+                          />
+                        </div>
+
+                        {/* Badge */}
+                        <div className="absolute top-1 left-1">
+                          {idx === 0 ? (
+                            <span className="bg-amber-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded shadow-xs flex items-center gap-0.5">
+                              <Star className="w-2 h-2 fill-current" /> Cover
+                            </span>
+                          ) : (
+                            <span className="bg-black/65 text-white text-[8px] font-semibold px-1 py-0.5 rounded">
+                              ছবি {idx + 1}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Action buttons on hover / overlay */}
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-1.5 text-[9px] text-white">
+                          <div className="flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = newProduct.images.filter((_, i) => i !== idx);
+                                setNewProduct({
+                                  ...newProduct,
+                                  images: updated,
+                                  imageUrl: updated[0] || '',
+                                });
+                              }}
+                              className="p-1 rounded bg-rose-600 hover:bg-rose-700 text-white cursor-pointer"
+                              title="মুছে ফেলুন"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                          {idx !== 0 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const item = newProduct.images[idx];
+                                const remaining = newProduct.images.filter((_, i) => i !== idx);
+                                const updated = [item, ...remaining];
+                                setNewProduct({
+                                  ...newProduct,
+                                  images: updated,
+                                  imageUrl: updated[0],
+                                });
+                              }}
+                              className="bg-amber-500 hover:bg-amber-600 text-white py-1 px-1.5 rounded font-bold text-[8px] flex items-center justify-center gap-1 cursor-pointer"
+                            >
+                              <Star className="w-2.5 h-2.5 fill-current" /> কভার বানান
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add image controls: Device Upload & URL input */}
+                <div className="space-y-2 pt-1 border-t border-[#ede8e4]">
+                  <div className="flex items-center gap-2">
+                    <label className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-white border border-dashed border-[#745663]/50 hover:border-[#745663] text-[#745663] rounded-xl text-xs font-semibold cursor-pointer hover:bg-[#fdebf3]/30 transition-colors shadow-2xs">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>📁 ডিভাইস থেকে ছবি আপলোড করুন</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          handleLocalImageUpload(e.target.files, false);
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
+                  </div>
+
+                  {/* URL input */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newAddImageUrl}
+                      onChange={(e) => setNewAddImageUrl(e.target.value)}
+                      placeholder="বা ছবির লিংক পেস্ট করুন (https://...)"
+                      className="flex-1 bg-white border border-[#e4e0dc] focus:border-[#745663] rounded-xl px-3 py-1.5 text-xs text-[#1b1c1c] focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (newAddImageUrl.trim()) {
+                          const updated = [...newProduct.images, newAddImageUrl.trim()];
+                          setNewProduct({
+                            ...newProduct,
+                            images: updated,
+                            imageUrl: updated[0],
+                          });
+                          setNewAddImageUrl('');
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-[#745663] hover:bg-[#5c434e] text-white rounded-xl font-bold text-xs cursor-pointer shadow-2xs flex items-center gap-1 shrink-0"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>যোগ করুন</span>
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div>
@@ -1085,14 +1303,147 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
               </div>
 
-              <div>
-                <label className="block font-semibold text-[#1b1c1c] mb-1">Image URL</label>
-                <input
-                  type="text"
-                  value={editingProduct.imageUrl}
-                  onChange={(e) => setEditingProduct({ ...editingProduct, imageUrl: e.target.value })}
-                  className="w-full bg-[#f6f4f2] border border-[#e4e0dc] focus:border-[#745663] focus:bg-white rounded-xl px-3 py-2 text-[#1b1c1c] focus:outline-none"
-                />
+              {/* Multi-Image Gallery Section for Editing */}
+              <div className="bg-[#fcfbfa] border border-[#ede8e4] rounded-2xl p-3.5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <ImageIcon className="w-4 h-4 text-[#745663]" />
+                    <span className="font-bold text-xs text-[#1b1c1c]">প্রোডাক্ট ইমেজ গ্যালারি (২-৩টি ছবি)</span>
+                  </div>
+                  <span className="text-[10px] bg-[#fdebf3] text-[#745663] font-bold px-2 py-0.5 rounded-full border border-[#fcd4e4]">
+                    {(editingProduct.images || [editingProduct.imageUrl]).length}টি ছবি সংযুক্ত
+                  </span>
+                </div>
+
+                <p className="text-[10px] text-[#8f8287] leading-relaxed">
+                  কাস্টমার প্রোডাক্ট ডিটেইলসে ২-৩টি ছবির স্লাইডার দেখতে পাবেন। <strong>প্রথম ছবিটি মূল কভার (Cover) হিসেবে প্রদর্শিত হবে।</strong>
+                </p>
+
+                {/* Current Images List Grid */}
+                {(editingProduct.images && editingProduct.images.length > 0 ? editingProduct.images : [editingProduct.imageUrl]).length > 0 && (
+                  <div className="grid grid-cols-3 gap-2 pt-1">
+                    {(editingProduct.images && editingProduct.images.length > 0 ? editingProduct.images : [editingProduct.imageUrl]).map((imgUrl, idx) => (
+                      <div
+                        key={idx}
+                        className={`relative rounded-xl overflow-hidden border ${
+                          idx === 0 ? 'border-amber-400 ring-2 ring-amber-400/30' : 'border-[#e4e0dc]'
+                        } bg-white group shadow-2xs`}
+                      >
+                        <div className="h-24 w-full bg-[#f6f4f2]">
+                          <OptimizedImage
+                            src={imgUrl}
+                            alt={`Photo ${idx + 1}`}
+                            aspectRatio="h-full w-full"
+                          />
+                        </div>
+
+                        {/* Badge */}
+                        <div className="absolute top-1 left-1">
+                          {idx === 0 ? (
+                            <span className="bg-amber-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded shadow-xs flex items-center gap-0.5">
+                              <Star className="w-2 h-2 fill-current" /> Cover
+                            </span>
+                          ) : (
+                            <span className="bg-black/65 text-white text-[8px] font-semibold px-1 py-0.5 rounded">
+                              ছবি {idx + 1}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Action buttons on hover / overlay */}
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-1.5 text-[9px] text-white">
+                          <div className="flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const currentImgs = editingProduct.images && editingProduct.images.length > 0 ? [...editingProduct.images] : [editingProduct.imageUrl];
+                                const updated = currentImgs.filter((_, i) => i !== idx);
+                                setEditingProduct({
+                                  ...editingProduct,
+                                  images: updated,
+                                  imageUrl: updated[0] || '',
+                                });
+                              }}
+                              className="p-1 rounded bg-rose-600 hover:bg-rose-700 text-white cursor-pointer"
+                              title="মুছে ফেলুন"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                          {idx !== 0 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const currentImgs = editingProduct.images && editingProduct.images.length > 0 ? [...editingProduct.images] : [editingProduct.imageUrl];
+                                const item = currentImgs[idx];
+                                const remaining = currentImgs.filter((_, i) => i !== idx);
+                                const updated = [item, ...remaining];
+                                setEditingProduct({
+                                  ...editingProduct,
+                                  images: updated,
+                                  imageUrl: updated[0],
+                                });
+                              }}
+                              className="bg-amber-500 hover:bg-amber-600 text-white py-1 px-1.5 rounded font-bold text-[8px] flex items-center justify-center gap-1 cursor-pointer"
+                            >
+                              <Star className="w-2.5 h-2.5 fill-current" /> কভার বানান
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add image controls: Device Upload & URL input */}
+                <div className="space-y-2 pt-1 border-t border-[#ede8e4]">
+                  <div className="flex items-center gap-2">
+                    <label className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-white border border-dashed border-[#745663]/50 hover:border-[#745663] text-[#745663] rounded-xl text-xs font-semibold cursor-pointer hover:bg-[#fdebf3]/30 transition-colors shadow-2xs">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>📁 ডিভাইস থেকে ছবি আপলোড করুন</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          handleLocalImageUpload(e.target.files, true);
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
+                  </div>
+
+                  {/* URL input */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={editImageUrlInput}
+                      onChange={(e) => setEditImageUrlInput(e.target.value)}
+                      placeholder="বা ছবির লিংক পেস্ট করুন (https://...)"
+                      className="flex-1 bg-white border border-[#e4e0dc] focus:border-[#745663] rounded-xl px-3 py-1.5 text-xs text-[#1b1c1c] focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (editImageUrlInput.trim()) {
+                          const currentImgs = editingProduct.images && editingProduct.images.length > 0 ? [...editingProduct.images] : [editingProduct.imageUrl];
+                          const updated = [...currentImgs, editImageUrlInput.trim()];
+                          setEditingProduct({
+                            ...editingProduct,
+                            images: updated,
+                            imageUrl: updated[0],
+                          });
+                          setEditImageUrlInput('');
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-[#745663] hover:bg-[#5c434e] text-white rounded-xl font-bold text-xs cursor-pointer shadow-2xs flex items-center gap-1 shrink-0"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>যোগ করুন</span>
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div>

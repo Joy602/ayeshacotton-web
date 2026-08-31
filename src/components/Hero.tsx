@@ -95,3 +95,4 @@ export const Hero: React.FC<HeroProps> = ({ onShopClick }) => {
     </section>
   );
 };
+

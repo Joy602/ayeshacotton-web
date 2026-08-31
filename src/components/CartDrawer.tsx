@@ -5,6 +5,7 @@ import confetti from 'canvas-confetti';
 import { OptimizedImage } from './common/OptimizedImage';
 import { insertOrderToSupabase } from '../lib/supabase';
 import { sendOrderNotificationEmail } from '../lib/emailService';
+import { formatPrice, toBengaliNumber } from '../lib/formatters';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -78,7 +79,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     const itemsList = items
       .map(
         (i, idx) =>
-          `${idx + 1}. *${i.product.name}* (x${i.quantity}) ${i.selectedSize ? `[Size: ${i.selectedSize}]` : ''} - ${currencySymbol}${(i.product.price * i.quantity).toLocaleString()}`
+          `${idx + 1}. *${i.product.name}* (x${toBengaliNumber(i.quantity)}) ${i.selectedSize ? `[Size: ${i.selectedSize}]` : ''} - ${formatPrice(i.product.price * i.quantity, currencySymbol)}`
       )
       .join('\n');
 
@@ -88,9 +89,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 *Items:*
 ${itemsList}
 
-*Subtotal:* ${currencySymbol}${subtotal.toLocaleString()}
-*Delivery Charge (${city}):* ${isFreeDelivery ? 'FREE' : `${currencySymbol}${finalDelivery}`}
-*Total Payable:* ${currencySymbol}${grandTotal.toLocaleString()}
+*Subtotal:* ${formatPrice(subtotal, currencySymbol)}
+*Delivery Charge (${city}):* ${isFreeDelivery ? 'FREE (ফ্রি)' : formatPrice(finalDelivery, currencySymbol)}
+*Total Payable:* ${formatPrice(grandTotal, currencySymbol)}
 
 *Customer Details:*
 • Name: ${customerName.trim()}
@@ -269,7 +270,7 @@ Please confirm order placement. Thank you!`;
                       {item.product.category} {item.selectedSize ? `• Size: ${item.selectedSize}` : ''}
                     </p>
                     <p className="text-xs font-bold text-[#745663] mt-0.5 font-playfair">
-                      {currencySymbol}{item.product.price.toLocaleString()}
+                      {formatPrice(item.product.price, currencySymbol)}
                     </p>
 
                     {/* Quantity controls */}
@@ -282,7 +283,7 @@ Please confirm order placement. Thank you!`;
                         >
                           <Minus className="w-3 h-3" />
                         </button>
-                        <span className="px-2 text-xs font-bold text-[#1b1c1c]">{item.quantity}</span>
+                        <span className="px-2 text-xs font-bold text-[#1b1c1c]">{toBengaliNumber(item.quantity)}</span>
                         <button
                           onClick={() => onUpdateQuantity(item.product.id, 1)}
                           className="p-1 text-[#53434b] hover:text-[#1b1c1c] cursor-pointer"
@@ -310,18 +311,18 @@ Please confirm order placement. Thank you!`;
             <div className="pt-3 sm:pt-4 border-t border-[#ede8e4] space-y-2.5 sm:space-y-3 mt-3 sm:mt-4">
               <div className="space-y-1 sm:space-y-1.5 text-xs text-[#53434b]">
                 <div className="flex justify-between">
-                  <span>Subtotal:</span>
-                  <span className="font-semibold text-[#1b1c1c]">{currencySymbol}{subtotal.toLocaleString()}</span>
+                  <span>সাবটোটাল (Subtotal):</span>
+                  <span className="font-semibold text-[#1b1c1c]">{formatPrice(subtotal, currencySymbol)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Shipping:</span>
+                  <span>ডেলিভারি চার্জ:</span>
                   <span className="font-semibold text-[#1b1c1c]">
-                    {isFreeDelivery ? 'Free' : `Calculated at checkout`}
+                    {isFreeDelivery ? 'ফ্রি' : `চেকআউটে যুক্ত হবে`}
                   </span>
                 </div>
                 <div className="flex justify-between border-t border-[#ede8e4] pt-1.5 text-xs sm:text-sm font-bold text-[#1b1c1c]">
-                  <span>Total:</span>
-                  <span className="text-[#745663] font-playfair">{currencySymbol}{subtotal.toLocaleString()}</span>
+                  <span>মোট (Total):</span>
+                  <span className="text-[#745663] font-playfair">{formatPrice(subtotal, currencySymbol)}</span>
                 </div>
               </div>
 
@@ -410,15 +411,15 @@ Please confirm order placement. Thank you!`;
                   onChange={(e) => setCity(e.target.value)}
                   className="w-full bg-[#f6f4f2] border border-[#e4e0dc] focus:border-[#745663] focus:bg-white rounded-xl px-3 py-2.5 text-base sm:text-sm text-[#1b1c1c] focus:outline-none cursor-pointer"
                 >
-                  <option value="Dhaka">Inside Dhaka (৳80)</option>
-                  <option value="Outside Dhaka">Outside Dhaka (৳150)</option>
+                  <option value="Dhaka">ঢাকার ভেতরে (৮০ ৳)</option>
+                  <option value="Outside Dhaka">ঢাকার বাইরে (১৫০ ৳)</option>
                 </select>
               </div>
 
               <div className="bg-[#fcfbfa] p-3 rounded-2xl border border-[#ede8e4] text-xs space-y-1 mt-2">
                 <div className="flex justify-between">
-                  <span className="text-[#53434b]">Grand Total:</span>
-                  <span className="font-bold text-xs sm:text-sm text-[#745663] font-playfair">{currencySymbol}{grandTotal.toLocaleString()}</span>
+                  <span className="text-[#53434b]">সর্বমোট প্রদেয় (Grand Total):</span>
+                  <span className="font-bold text-xs sm:text-sm text-[#745663] font-playfair">{formatPrice(grandTotal, currencySymbol)}</span>
                 </div>
               </div>
             </div>
