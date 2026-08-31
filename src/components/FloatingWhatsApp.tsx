@@ -24,7 +24,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ settings }) 
       {showTooltip && (
         <div className="hidden sm:flex items-center gap-2 bg-white text-[#1b1c1c] text-xs font-semibold px-4 py-2.5 rounded-full shadow-lg border border-[#ede8e4] animate-in fade-in slide-in-from-right duration-300">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-          <span>Need styling advice? Chat on WhatsApp!</span>
+          <span>কোনো পরামর্শ বা তথ্যের প্রয়োজন? WhatsApp-এ কথা বলুন!</span>
           <button
             onClick={() => setShowTooltip(false)}
             className="text-[#8f8287] hover:text-[#1b1c1c] ml-1 p-0.5 rounded cursor-pointer"
