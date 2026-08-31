@@ -32,7 +32,33 @@ export function App() {
   // Persistence with localStorage
   const [products, setProducts] = useState<Product[]>(() => {
     const saved = localStorage.getItem('ayesha_cotton_products');
-    return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
+    if (saved) {
+      try {
+        const parsed: Product[] = JSON.parse(saved);
+        // Exclude deleted products like prod-11
+        const activeParsed = parsed.filter((p) => p.id !== 'prod-11');
+        // Seamlessly update/merge with INITIAL_PRODUCTS
+        const initialMap = new Map(INITIAL_PRODUCTS.map((p) => [p.id, p]));
+        const updated = activeParsed.map((p) => {
+          if (initialMap.has(p.id)) {
+            const initP = initialMap.get(p.id)!;
+            return {
+              ...initP,
+              ...p,
+              imageUrl: p.imageUrl || initP.imageUrl,
+              images: (p.images && p.images.length > 0) ? p.images : (initP.images || [p.imageUrl || initP.imageUrl]),
+            };
+          }
+          return p;
+        });
+        const existingIds = new Set(updated.map((p) => p.id));
+        const missing = INITIAL_PRODUCTS.filter((p) => !existingIds.has(p.id));
+        return [...updated, ...missing];
+      } catch (e) {
+        return INITIAL_PRODUCTS;
+      }
+    }
+    return INITIAL_PRODUCTS;
   });
 
   const [orders, setOrders] = useState<Order[]>(() => {
@@ -50,8 +76,12 @@ export function App() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (parsed.whatsappNumber === '+8801700000000' || !parsed.whatsappNumber) {
-          return { ...parsed, whatsappNumber: '+8801783769261' };
+        if (
+          parsed.whatsappNumber === '+8801700000000' ||
+          parsed.whatsappNumber === '+8801783769261' ||
+          !parsed.whatsappNumber
+        ) {
+          return { ...parsed, whatsappNumber: '+8801712679721' };
         }
         return parsed;
       } catch (e) {
@@ -96,6 +126,7 @@ export function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [authModalInitialMode, setAuthModalInitialMode] = useState<'login' | 'register'>('login');
   const [authPurposeMessage, setAuthPurposeMessage] = useState<string | undefined>(undefined);
+  const [notificationMessage, setNotificationMessage] = useState<string | null>(null);
 
   // Sync to localStorage
   useEffect(() => {
@@ -138,7 +169,10 @@ export function App() {
         ]);
         if (isMounted) {
           if (liveProducts && liveProducts.length > 0) {
-            setProducts(liveProducts);
+            const filteredLive = liveProducts.filter((p) => p.id !== 'prod-11');
+            const liveIds = new Set(filteredLive.map((p) => p.id));
+            const missing = INITIAL_PRODUCTS.filter((p) => !liveIds.has(p.id));
+            setProducts([...filteredLive, ...missing]);
           }
           if (liveOrders && liveOrders.length > 0) {
             setOrders(liveOrders);
@@ -205,7 +239,7 @@ export function App() {
   const handleAttemptAdminAccess = () => {
     const ADMIN_EMAIL = 'abranjoy2@gmail.com';
     if (!currentUser) {
-      setAuthPurposeMessage('Admin panel is restricted. Please login with admin credentials (abranjoy2@gmail.com).');
+      setAuthPurposeMessage('অ্যাডমিন প্যানেল সুরক্ষিত। অনুগ্রহ করে অ্যাডমিন অ্যাকাউন্টে লগইন করুন।');
       setAuthModalInitialMode('login');
       setIsAuthModalOpen(true);
       return;
@@ -214,7 +248,8 @@ export function App() {
     if (currentUser.email?.toLowerCase().trim() === ADMIN_EMAIL) {
       setIsAdminView((prev) => !prev);
     } else {
-      alert(`Access denied. Only the official admin account (${ADMIN_EMAIL}) has access to the Admin Dashboard.`);
+      setNotificationMessage('অ্যাডমিন প্যানেলে প্রবেশের অনুমতি শুধুমাত্র অথোরাইজড অ্যাডমিন অ্যাকাউন্টের জন্য সংরক্ষিত।');
+      setTimeout(() => setNotificationMessage(null), 4000);
     }
   };
 
@@ -483,6 +518,14 @@ export function App() {
         }}
         purposeMessage={authPurposeMessage}
       />
+
+      {/* Toast Notification Banner */}
+      {notificationMessage && (
+        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 max-w-[90vw] sm:max-w-md bg-[#1b1c1c] text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border border-white/10 animate-in fade-in slide-in-from-bottom-3 duration-200">
+          <span className="text-sm">ℹ️</span>
+          <p className="text-xs font-medium leading-relaxed">{notificationMessage}</p>
+        </div>
+      )}
     </div>
   );
 }

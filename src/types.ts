@@ -10,6 +10,7 @@ export interface Product {
   originalPrice?: number;
   stock: number;
   imageUrl: string;
+  images?: string[];
   badge?: 'Stitched' | 'Unstitched' | 'Kids' | 'New Arrival' | 'Bestseller';
   description: string;
   fabricDetails?: string;

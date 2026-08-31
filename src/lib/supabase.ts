@@ -393,11 +393,11 @@ export async function fetchCustomersFromSupabase(): Promise<Customer[] | null> {
 
 export interface CustomerRegisterPayload {
   name: string;
-  email: string;
   phoneNumber: string;
-  address: string;
-  city?: string;
   password: string;
+  email?: string;
+  address?: string;
+  city?: string;
 }
 
 /**
@@ -408,9 +408,9 @@ export async function registerCustomerInSupabase(
 ): Promise<{ success: boolean; user?: CustomerUser; error?: string }> {
   try {
     const cleanPhone = payload.phoneNumber.trim();
-    const cleanEmail = payload.email.trim().toLowerCase();
+    const cleanEmail = payload.email ? payload.email.trim().toLowerCase() : '';
     const cleanName = payload.name.trim();
-    const cleanAddress = payload.address.trim();
+    const cleanAddress = payload.address?.trim() || '';
     const cleanCity = payload.city?.trim() || 'Dhaka';
     const isAdmin = cleanEmail === 'abranjoy2@gmail.com';
 
@@ -424,11 +424,11 @@ export async function registerCustomerInSupabase(
     if (!phoneErr && existingByPhone && existingByPhone.length > 0) {
       return {
         success: false,
-        error: 'An account with this phone number already exists. Please sign in instead.',
+        error: 'এই ফোন নম্বর দিয়ে ইতিমধ্যে অ্যাকাউন্ট রয়েছে। অনুগ্রহ করে লগইন করুন। (An account with this phone number already exists.)',
       };
     }
 
-    // 2. Check if email already exists
+    // 2. Check if email already exists (if provided)
     if (cleanEmail) {
       const { data: existingByEmail, error: emailErr } = await supabase
         .from('customers')
@@ -439,7 +439,7 @@ export async function registerCustomerInSupabase(
       if (!emailErr && existingByEmail && existingByEmail.length > 0) {
         return {
           success: false,
-          error: 'An account with this email address already exists. Please sign in instead.',
+          error: 'এই ইমেইল অ্যাড্রেস দিয়ে ইতিমধ্যে অ্যাকাউন্ট রয়েছে। (An account with this email already exists.)',
         };
       }
     }
@@ -467,7 +467,7 @@ export async function registerCustomerInSupabase(
       console.error('[Supabase] Customer insert error details:', error);
       return {
         success: false,
-        error: `Database save failed: ${error.message}. Please check your connection.`,
+        error: `ডাটাবেজ সেভ ব্যর্থ হয়েছে: ${error.message}। সংযোগ পরীক্ষা করুন।`,
       };
     }
 
@@ -476,7 +476,7 @@ export async function registerCustomerInSupabase(
     return { success: true, user };
   } catch (err: any) {
     console.error('[Supabase] Error registering customer:', err);
-    return { success: false, error: err?.message || 'Failed to register customer' };
+    return { success: false, error: err?.message || 'রেজিস্ট্রেশন সম্পন্ন করা সম্ভব হয়নি।' };
   }
 }
 
@@ -516,7 +516,7 @@ export async function loginCustomerFromSupabase(
           id: 'admin-abranjoy',
           name: 'Ayesha Cotton Admin',
           email: 'abranjoy2@gmail.com',
-          phoneNumber: '01783769261',
+          phoneNumber: '01712679721',
           address: 'Ayesha Cotton HQ, Dhaka',
           city: 'Dhaka',
           role: 'admin',

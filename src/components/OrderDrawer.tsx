@@ -5,6 +5,7 @@ import confetti from 'canvas-confetti';
 import { OptimizedImage } from './common/OptimizedImage';
 import { insertOrderToSupabase } from '../lib/supabase';
 import { sendOrderNotificationEmail } from '../lib/emailService';
+import { formatPrice, toBengaliNumber } from '../lib/formatters';
 
 interface OrderDrawerProps {
   isOpen: boolean;
@@ -100,11 +101,11 @@ export const OrderDrawer: React.FC<OrderDrawerProps> = ({
 *Product:* ${product.name}
 *SKU:* ${product.sku}
 *Category:* ${product.category}
-${selectedSize ? `*Size:* ${selectedSize}\n` : ''}*Quantity:* ${quantity}
-*Item Price:* ${currencySymbol}${product.price.toLocaleString()}
-*Subtotal:* ${currencySymbol}${itemTotal.toLocaleString()}
-*Estimated Delivery (${city}):* ${currencySymbol}${deliveryFee}
-*Total Payable:* ${currencySymbol}${grandTotal.toLocaleString()}
+${selectedSize ? `*Size:* ${selectedSize}\n` : ''}*Quantity:* ${toBengaliNumber(quantity)}
+*Item Price:* ${formatPrice(product.price, currencySymbol)}
+*Subtotal:* ${formatPrice(itemTotal, currencySymbol)}
+*Estimated Delivery (${city}):* ${formatPrice(deliveryFee, currencySymbol)}
+*Total Payable:* ${formatPrice(grandTotal, currencySymbol)}
 
 *Customer Information:*
 • *Name:* ${fullName.trim()}
@@ -214,7 +215,7 @@ Please confirm availability and dispatch schedule. Thank you!`;
     }
 
     // 4. Construct the WhatsApp URL and open it
-    let cleanWhatsApp = (settings.whatsappNumber || '01783769261').replace(/[^0-9]/g, '');
+    let cleanWhatsApp = (settings.whatsappNumber || '01712679721').replace(/[^0-9]/g, '');
     if (cleanWhatsApp.startsWith('01')) {
       cleanWhatsApp = '88' + cleanWhatsApp;
     } else if (cleanWhatsApp.length === 10 && cleanWhatsApp.startsWith('1')) {
@@ -440,7 +441,7 @@ Please confirm availability and dispatch schedule. Thank you!`;
                   SKU: {product.sku} • {product.category}
                 </p>
                 <p className="font-sans-body font-bold text-xs sm:text-sm text-[#745663] font-playfair" id="drawerProductPrice">
-                  {currencySymbol}{product.price.toLocaleString()}
+                  {formatPrice(product.price, currencySymbol)}
                 </p>
               </div>
               <div className="w-14 h-16 sm:w-16 sm:h-20 bg-[#f2eeeb] rounded-xl overflow-hidden shrink-0 border border-[#ede8e4]">
@@ -542,18 +543,18 @@ Please confirm availability and dispatch schedule. Thank you!`;
                     onChange={(e) => setCity(e.target.value)}
                     className="w-full bg-[#f6f4f2] border border-[#e4e0dc] focus:border-[#745663] focus:bg-white rounded-xl px-2.5 sm:px-3 py-2.5 sm:py-3 text-base sm:text-sm text-[#1b1c1c] focus:outline-none cursor-pointer"
                   >
-                    <option value="Dhaka">Inside Dhaka (৳80)</option>
-                    <option value="Chittagong">Chittagong (৳150)</option>
-                    <option value="Sylhet">Sylhet (৳150)</option>
-                    <option value="Rajshahi">Rajshahi (৳150)</option>
-                    <option value="Khulna">Khulna (৳150)</option>
-                    <option value="Other District">Outside Dhaka (৳150)</option>
+                    <option value="Dhaka">ঢাকার ভেতরে (৮০ ৳)</option>
+                    <option value="Chittagong">চট্টগ্রাম (১৫০ ৳)</option>
+                    <option value="Sylhet">সিলেট (১৫০ ৳)</option>
+                    <option value="Rajshahi">রাজশাহী (১৫০ ৳)</option>
+                    <option value="Khulna">খুলনা (১৫০ ৳)</option>
+                    <option value="Other District">ঢাকার বাইরে (১৫০ ৳)</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-[11px] sm:text-xs font-semibold text-[#1b1c1c] mb-1">
-                    Quantity
+                    পরিমাণ (Quantity)
                   </label>
                   <input
                     type="number"
@@ -569,13 +570,13 @@ Please confirm availability and dispatch schedule. Thank you!`;
               {/* Special Order Notes */}
               <div>
                 <label className="block text-[11px] sm:text-xs font-semibold text-[#1b1c1c] mb-1">
-                  Order Notes (Optional)
+                  বিশেষ কোনো নোট (ঐচ্ছিক)
                 </label>
                 <input
                   type="text"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="e.g., gift wrapping, call before delivery"
+                  placeholder="যেমন: ডেলিভারির আগে কল করবেন"
                   className="w-full bg-[#f6f4f2] border border-[#e4e0dc] focus:border-[#745663] focus:bg-white rounded-xl px-3.5 py-2 text-base sm:text-xs text-[#1b1c1c] placeholder-[#8f8287] focus:outline-none transition-colors"
                 />
               </div>
@@ -583,16 +584,16 @@ Please confirm availability and dispatch schedule. Thank you!`;
               {/* Price Breakdown */}
               <div className="bg-[#fcfbfa] p-3 sm:p-3.5 rounded-2xl border border-[#ede8e4] space-y-1 text-xs text-[#53434b] mt-1">
                 <div className="flex justify-between">
-                  <span>Subtotal ({quantity} item{quantity > 1 ? 's' : ''}):</span>
-                  <span className="font-semibold text-[#1b1c1c]">{currencySymbol}{itemTotal.toLocaleString()}</span>
+                  <span>সাবটোটাল ({toBengaliNumber(quantity)} টি পণ্য):</span>
+                  <span className="font-semibold text-[#1b1c1c]">{formatPrice(itemTotal, currencySymbol)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Delivery Charge:</span>
-                  <span className="font-semibold text-[#1b1c1c]">{currencySymbol}{deliveryFee}</span>
+                  <span>ডেলিভারি চার্জ ({city}):</span>
+                  <span className="font-semibold text-[#1b1c1c]">{formatPrice(deliveryFee, currencySymbol)}</span>
                 </div>
                 <div className="flex justify-between border-t border-[#ede8e4] pt-1.5 text-xs sm:text-sm font-bold text-[#1b1c1c]">
-                  <span>Total Amount:</span>
-                  <span className="text-[#745663] font-playfair">{currencySymbol}{grandTotal.toLocaleString()}</span>
+                  <span>সর্বমোট প্রদেয় (Total):</span>
+                  <span className="text-[#745663] font-playfair">{formatPrice(grandTotal, currencySymbol)}</span>
                 </div>
               </div>
 
