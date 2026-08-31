@@ -30,32 +30,73 @@ import { Footer } from './components/Footer';
 import { ContactModal } from './components/ContactModal';
 import { CustomerAuthModal } from './components/CustomerAuthModal';
 
+function normalizeProductName(name: string): string {
+  return (name || '').trim().toLowerCase();
+}
+
+export function mergeAndDeduplicateProducts(incomingProducts: Product[]): Product[] {
+  const initialMapByName = new Map<string, Product>();
+  const initialMapById = new Map<string, Product>();
+  for (const initP of INITIAL_PRODUCTS) {
+    initialMapByName.set(normalizeProductName(initP.name), initP);
+    initialMapById.set(initP.id, initP);
+  }
+
+  const result: Product[] = [];
+  const seenNames = new Set<string>();
+  const seenIds = new Set<string>();
+
+  // 1. Process incoming products first
+  for (const p of incomingProducts) {
+    if (!p || p.id === 'prod-11') continue;
+    const nameKey = normalizeProductName(p.name);
+    
+    // Skip if this product name or id is already in our result
+    if ((nameKey && seenNames.has(nameKey)) || (p.id && seenIds.has(p.id))) {
+      continue;
+    }
+
+    // Match with initial data by name or ID to inherit rich attributes
+    const initMatch = (nameKey ? initialMapByName.get(nameKey) : null) || (p.id ? initialMapById.get(p.id) : null);
+    
+    const merged: Product = initMatch
+      ? {
+          ...initMatch,
+          ...p,
+          id: p.id || initMatch.id,
+          imageUrl: p.imageUrl || initMatch.imageUrl,
+          images: (p.images && p.images.length > 0) ? p.images : (initMatch.images || [p.imageUrl || initMatch.imageUrl]),
+        }
+      : p;
+
+    if (nameKey) seenNames.add(nameKey);
+    if (merged.id) seenIds.add(merged.id);
+    result.push(merged);
+  }
+
+  // 2. Add any INITIAL_PRODUCTS that were not present in incomingProducts
+  for (const initP of INITIAL_PRODUCTS) {
+    if (initP.id === 'prod-11') continue;
+    const nameKey = normalizeProductName(initP.name);
+    if (nameKey && seenNames.has(nameKey)) continue;
+    if (initP.id && seenIds.has(initP.id)) continue;
+
+    if (nameKey) seenNames.add(nameKey);
+    if (initP.id) seenIds.add(initP.id);
+    result.push(initP);
+  }
+
+  return result;
+}
+
 export function App() {
-  // Persistence with localStorage
+  // Persistence with localStorage & deduplication
   const [products, setProducts] = useState<Product[]>(() => {
     const saved = localStorage.getItem('ayesha_cotton_products');
     if (saved) {
       try {
         const parsed: Product[] = JSON.parse(saved);
-        // Exclude deleted products like prod-11
-        const activeParsed = parsed.filter((p) => p.id !== 'prod-11');
-        // Seamlessly update/merge with INITIAL_PRODUCTS
-        const initialMap = new Map(INITIAL_PRODUCTS.map((p) => [p.id, p]));
-        const updated = activeParsed.map((p) => {
-          if (initialMap.has(p.id)) {
-            const initP = initialMap.get(p.id)!;
-            return {
-              ...initP,
-              ...p,
-              imageUrl: p.imageUrl || initP.imageUrl,
-              images: (p.images && p.images.length > 0) ? p.images : (initP.images || [p.imageUrl || initP.imageUrl]),
-            };
-          }
-          return p;
-        });
-        const existingIds = new Set(updated.map((p) => p.id));
-        const missing = INITIAL_PRODUCTS.filter((p) => !existingIds.has(p.id));
-        return [...updated, ...missing];
+        return mergeAndDeduplicateProducts(parsed);
       } catch (e) {
         return INITIAL_PRODUCTS;
       }
@@ -171,10 +212,8 @@ export function App() {
         ]);
         if (isMounted) {
           if (liveProducts && liveProducts.length > 0) {
-            const filteredLive = liveProducts.filter((p) => p.id !== 'prod-11');
-            const liveIds = new Set(filteredLive.map((p) => p.id));
-            const missing = INITIAL_PRODUCTS.filter((p) => !liveIds.has(p.id));
-            setProducts([...filteredLive, ...missing]);
+            const merged = mergeAndDeduplicateProducts(liveProducts);
+            setProducts(merged);
           }
           if (liveOrders && liveOrders.length > 0) {
             setOrders(liveOrders);

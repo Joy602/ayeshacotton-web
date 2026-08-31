@@ -63,7 +63,14 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
       list.sort((a, b) => b.price - a.price);
     }
 
-    return list;
+    // Safety deduplication by name/id
+    const seen = new Set<string>();
+    return list.filter((p) => {
+      const key = (p.name || p.id || '').trim().toLowerCase();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }, [products, selectedCategory, searchQuery, sortBy]);
 
   return (
