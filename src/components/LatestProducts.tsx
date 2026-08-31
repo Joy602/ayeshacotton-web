@@ -19,7 +19,18 @@ export const LatestProducts: React.FC<LatestProductsProps> = ({
   onAddToCart,
   onViewDetails,
 }) => {
-  const latestItems = products.filter((p) => p.isLatest || p.badge === 'New Arrival').slice(0, 4);
+  const latestItems = React.useMemo(() => {
+    const seen = new Set<string>();
+    return products
+      .filter((p) => p.isLatest || p.badge === 'New Arrival')
+      .filter((p) => {
+        const key = (p.name || p.id || '').trim().toLowerCase();
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, 4);
+  }, [products]);
 
   if (latestItems.length === 0) return null;
 
