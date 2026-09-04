@@ -26,7 +26,7 @@ export const Hero: React.FC<HeroProps> = ({ onShopClick }) => {
           </div>
 
           <h1 id="hero-heading" className="font-playfair text-2xl min-[380px]:text-3xl sm:text-4xl md:text-5xl lg:text-[48px] font-bold text-[#1b1c1c] leading-[1.2] tracking-tight">
-            Premium Stitched &amp; Unstitched 3-Piece Collections
+            Premium 3 pcs, Kids &amp; Latest Designer Collections
           </h1>
 
           <p className="font-sans-body text-sm sm:text-base text-[#53434b] leading-relaxed">

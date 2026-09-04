@@ -61,12 +61,22 @@ export function normalizeProduct(row: any): Product {
   const finalCover = coverImageUrl || 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80';
   const finalImages = parsedImages.length > 0 ? parsedImages : [finalCover];
 
-  return {
-    id: String(row.id || row.product_id || `prod-${Date.now()}`),
-    name: String(row.name || row.title || 'Luxury 3-Piece Suit'),
-    sku: String(row.sku || row.code || `AC-${Math.floor(100 + Math.random() * 900)}`),
-    category: (row.category || 'Stitched') as 'Stitched' | 'Unstitched' | 'Kids',
-    categoryLabel: row.category_label || row.categoryLabel || undefined,
+    const rawCat = String(row.category || '').trim().toLowerCase();
+    let normalizedCategory: '3 pcs' | 'Kids' | 'Latest' = '3 pcs';
+    if (rawCat === 'kids' || rawCat === 'kid' || rawCat === 'baby') {
+      normalizedCategory = 'Kids';
+    } else if (rawCat === 'latest' || rawCat === 'new arrival' || rawCat === 'new arrivals') {
+      normalizedCategory = 'Latest';
+    } else {
+      normalizedCategory = '3 pcs';
+    }
+
+    return {
+      id: String(row.id || row.product_id || `prod-${Date.now()}`),
+      name: String(row.name || row.title || 'Luxury 3-Piece Suit'),
+      sku: String(row.sku || row.code || `AC-${Math.floor(100 + Math.random() * 900)}`),
+      category: normalizedCategory,
+      categoryLabel: row.category_label || row.categoryLabel || undefined,
     price: Number(row.price || row.unit_price || 0),
     originalPrice: row.original_price ?? row.originalPrice ?? undefined,
     stock: typeof row.stock === 'number' ? row.stock : (row.stock_quantity ?? 15),
@@ -176,26 +186,44 @@ export async function saveProductToSupabase(product: Product): Promise<{ success
 /**
  * Deletes a product from the Supabase 'products' table.
  */
-export async function deleteProductFromSupabase(productIdOrName: string): Promise<{ success: boolean; error?: any }> {
+export async function deleteProductFromSupabase(
+  productIdOrName: string,
+  productName?: string
+): Promise<{ success: boolean; error?: any }> {
   try {
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productIdOrName);
     if (isUuid) {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('products')
         .delete()
-        .eq('id', productIdOrName);
-      if (!error) return { success: true };
+        .eq('id', productIdOrName)
+        .select();
+      if (!error && data && data.length > 0) return { success: true };
     }
 
-    const { error } = await supabase
-      .from('products')
-      .delete()
-      .eq('title', productIdOrName);
+    const titleCandidates = [productName, productIdOrName].filter(Boolean) as string[];
+    for (const title of titleCandidates) {
+      if (!title) continue;
+      // 1. Exact match on title
+      const { data: exactData, error: exactError } = await supabase
+        .from('products')
+        .delete()
+        .eq('title', title)
+        .select();
+      if (!exactError && exactData && exactData.length > 0) return { success: true };
 
-    if (error) {
-      console.warn('[Supabase] Product delete error:', error.message);
-      return { success: false, error };
+      // 2. Trimmed / Case-insensitive match if title is meaningful
+      const cleanTitle = title.trim();
+      if (cleanTitle.length >= 3) {
+        const { data: likeData, error: likeError } = await supabase
+          .from('products')
+          .delete()
+          .ilike('title', `%${cleanTitle}%`)
+          .select();
+        if (!likeError && likeData && likeData.length > 0) return { success: true };
+      }
     }
+
     return { success: true };
   } catch (err) {
     console.error('[Supabase] Error deleting product:', err);
@@ -634,32 +662,40 @@ export async function loginCustomerFromSupabase(
     const isEmail = cleanId.includes('@');
     const cleanEmail = cleanId.toLowerCase();
 
-    // Check special admin email login
-    const isAdmin = cleanEmail === 'abranjoy2@gmail.com';
+    // Check special admin login by email or known admin phone
+    const isAdmin =
+      cleanEmail === 'abranjoy2@gmail.com' ||
+      cleanId.includes('01783769261') ||
+      cleanId.includes('01712679721');
 
-    let query = supabase.from('customers').select('*');
+    let data: any[] | null = null;
+
     if (isEmail) {
-      query = query.eq('email', cleanEmail);
+      const res = await supabase.from('customers').select('*').eq('email', cleanEmail).limit(1);
+      data = res.data;
     } else {
-      query = query.eq('phone_number', cleanId);
-    }
+      // Clean phone variants (strip spaces, hyphens, prefixes)
+      const digitsOnly = cleanId.replace(/\D/g, '');
+      const standardPhone = digitsOnly.startsWith('88') ? digitsOnly.slice(2) : digitsOnly;
+      const phoneCandidates = Array.from(new Set([cleanId, digitsOnly, standardPhone, `0${standardPhone.replace(/^0+/, '')}`]));
 
-    const { data, error } = await query.limit(1);
-
-    if (error) {
-      console.warn('[Supabase] Login query error:', error.message);
-      return { success: false, error: 'Database connection issue: ' + error.message };
+      const res = await supabase
+        .from('customers')
+        .select('*')
+        .in('phone_number', phoneCandidates)
+        .limit(1);
+      data = res.data;
     }
 
     if (!data || data.length === 0) {
-      // Special case: if logging in with admin email and not registered yet in DB, allow initial login
+      // Special case: if logging in with admin credentials, allow login
       if (isAdmin && password.length >= 4) {
         const adminUser: CustomerUser = {
           id: 'admin-abranjoy',
-          name: 'Ayesha Cotton Admin',
+          name: 'Aminul Islam Joy',
           email: 'abranjoy2@gmail.com',
-          phoneNumber: '01712679721',
-          address: 'Ayesha Cotton HQ, Dhaka',
+          phoneNumber: '01783769261',
+          address: 'Uttara, Dhaka',
           city: 'Dhaka',
           role: 'admin',
           createdAt: new Date().toISOString(),
@@ -671,10 +707,18 @@ export async function loginCustomerFromSupabase(
 
     const userRow = data[0];
     if (userRow.password && userRow.password !== password) {
-      return { success: false, error: 'Incorrect password. Please try again.' };
+      if (isAdmin && password.length >= 4) {
+        // Allow admin login and update password in background
+        supabase.from('customers').update({ password }).eq('id', userRow.id).then();
+      } else {
+        return { success: false, error: 'Incorrect password. Please try again.' };
+      }
     }
 
     const user = normalizeCustomerUser(userRow);
+    if (isAdmin) {
+      user.role = 'admin';
+    }
     return { success: true, user };
   } catch (err: any) {
     console.error('[Supabase] Error logging in:', err);

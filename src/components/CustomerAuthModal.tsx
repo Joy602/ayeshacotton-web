@@ -196,7 +196,7 @@ export const CustomerAuthModal: React.FC<CustomerAuthModalProps> = ({
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-[#1b1c1c] mb-1">
-                  মোবাইল নম্বর <span className="text-[11px] text-[#745663] font-normal">(Phone Number)</span>
+                  মোবাইল নম্বর অথবা ইমেইল <span className="text-[11px] text-[#745663] font-normal">(Phone or Email)</span>
                 </label>
                 <div className="relative">
                   <Phone className="w-4 h-4 text-[#8f8287] absolute left-3.5 top-3.5" />
@@ -205,8 +205,8 @@ export const CustomerAuthModal: React.FC<CustomerAuthModalProps> = ({
                     required
                     value={loginPhone}
                     onChange={(e) => setLoginPhone(e.target.value)}
-                    placeholder="017XXXXXXXX"
-                    className="w-full bg-[#fcfbfa] border border-[#e4e0dc] focus:border-[#745663] focus:bg-white rounded-xl pl-10 pr-4 py-2.5 text-xs text-[#1b1c1c] focus:outline-none transition-colors font-mono tracking-wide"
+                    placeholder="017XXXXXXXX অথবা abranjoy2@gmail.com"
+                    className="w-full bg-[#fcfbfa] border border-[#e4e0dc] focus:border-[#745663] focus:bg-white rounded-xl pl-10 pr-4 py-2.5 text-xs text-[#1b1c1c] focus:outline-none transition-colors tracking-wide"
                   />
                 </div>
               </div>

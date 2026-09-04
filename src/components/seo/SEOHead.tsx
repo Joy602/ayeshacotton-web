@@ -26,11 +26,11 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
   const siteUrl = window.location.origin;
 
   // Dynamic dynamic title determination
-  let pageTitle = `${baseTitle} | Luxury 3-Piece Stitched & Unstitched South Asian Collections`;
+  let pageTitle = `${baseTitle} | Luxury 3 pcs, Kids & Latest South Asian Designer Collections`;
   if (product) {
-    pageTitle = `${product.name} - ${product.category} 3-Piece Suite | ${baseTitle}`;
+    pageTitle = `${product.name} - ${product.category} | ${baseTitle}`;
   } else if (category && category !== 'All') {
-    pageTitle = `${category} Collection - Premium Lawn & Silk 3-Piece | ${baseTitle}`;
+    pageTitle = `${category} Collection - Premium South Asian Fashion | ${baseTitle}`;
   } else if (title) {
     pageTitle = `${title} | ${baseTitle}`;
   }
@@ -38,7 +38,7 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
   const pageDescription =
     product?.description ||
     description ||
-    'Discover authentic luxury South Asian 3-piece stitched and unstitched lawn, silk, organza, and velvet collections. Fast cash on delivery and instant WhatsApp ordering.';
+    'Discover authentic luxury South Asian 3 pcs designer ensembles, kids festive wear, and exclusive latest collections. Fast cash on delivery across Bangladesh.';
 
   const defaultImage =
     imageUrl ||
@@ -95,15 +95,15 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
     const storeSchema = {
       '@context': 'https://schema.org',
       '@type': 'ClothingStore',
-      name: settings.storeName,
-      description: 'Curating luxury 3-piece stitched and unstitched ensembles with delicate handwork and authentic South Asian textile artistry.',
+      name: settings?.storeName || 'Ayesha Cotton',
+      description: 'Curating luxury 3 pcs designer ensembles, handcrafted kids festive wear, and exclusive latest arrivals boutique collections.',
       url: siteUrl,
       logo: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAgz6pUlYTwN6r_3QOdniN5ictgxACX3qWCRTv_5cMdkiX1laWC07vFWT8M2ngV7Y1M07tyRtv6naptC5AVIuinIAx19ooACI4D4Gi2TSVkRh0wQYvBvinftHb5vxNJfkMXvfB-ilwUoxM32PhIqejCavh4fu6J9XxTpZA43c1N4KgV7TjH4-irMRDBhbBYwcfbDSet_DcAkVpQ4Y1qNU4yFXwAvVttRYUUMuJuCcIANw5AiiFmq-Eu',
-      telephone: settings.whatsappNumber,
-      email: settings.supportEmail,
+      telephone: settings?.whatsappNumber || '+8801712679721',
+      email: settings?.supportEmail || 'support@ayeshacotton.com',
       address: {
         '@type': 'PostalAddress',
-        streetAddress: settings.address,
+        streetAddress: settings?.address || 'House 24, Road 7, Sector 3, Uttara, Dhaka, Bangladesh',
         addressCountry: 'BD',
       },
       priceRange: '৳৳ - ৳৳৳',

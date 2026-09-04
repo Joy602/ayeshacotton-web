@@ -1,17 +1,17 @@
-export type ProductCategory = 'Stitched' | 'Unstitched' | 'Kids' | 'All';
+export type ProductCategory = '3 pcs' | 'Kids' | 'Latest' | 'All';
 
 export interface Product {
   id: string;
   name: string;
   sku: string;
-  category: 'Stitched' | 'Unstitched' | 'Kids';
+  category: '3 pcs' | 'Kids' | 'Latest';
   categoryLabel?: string;
   price: number;
   originalPrice?: number;
   stock: number;
   imageUrl: string;
   images?: string[];
-  badge?: 'Stitched' | 'Unstitched' | 'Kids' | 'New Arrival' | 'Bestseller';
+  badge?: '3 pcs' | 'Kids' | 'Latest' | 'New Arrival' | 'Bestseller';
   description: string;
   fabricDetails?: string;
   pieces?: string;
