@@ -29,6 +29,7 @@ import {
 import { OptimizedImage } from './common/OptimizedImage';
 import { getEmailJsConfig, saveEmailJsConfig, EmailJsConfig } from '../lib/emailService';
 import { formatPrice } from '../lib/formatters';
+import { compressImageFile } from '../lib/safeStorage';
 
 interface AdminDashboardProps {
   products: Product[];
@@ -36,6 +37,7 @@ interface AdminDashboardProps {
   customers: Customer[];
   settings: StoreSettings;
   onUpdateProducts: (products: Product[]) => void;
+  onDeleteProduct?: (productId: string, productName?: string) => Promise<any> | void;
   onUpdateOrders: (orders: Order[]) => void;
   onUpdateOrderStatus?: (orderId: string, status: Order['status']) => void;
   onDeleteOrder?: (orderId: string) => void;
@@ -49,6 +51,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   customers,
   settings,
   onUpdateProducts,
+  onDeleteProduct,
   onUpdateOrders,
   onUpdateOrderStatus,
   onDeleteOrder,
@@ -71,6 +74,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [emailConfig, setEmailConfig] = useState<EmailJsConfig>(getEmailJsConfig());
   const [emailConfigSaved, setEmailConfigSaved] = useState(false);
 
+  // Deletion modal states
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [isDeletingProduct, setIsDeletingProduct] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<{ id: string; ref: string } | null>(null);
+  const [isDeletingOrder, setIsDeletingOrder] = useState(false);
+
   const showNotice = (msg: string) => {
     setActionNotice(msg);
     setTimeout(() => {
@@ -81,7 +90,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Form state for new product
   const [newProduct, setNewProduct] = useState<Partial<Product> & { images: string[] }>({
     name: '',
-    category: 'Stitched',
+    category: '3 pcs',
     price: 0,
     originalPrice: 0,
     stock: 10,
@@ -104,19 +113,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const pendingOrdersCount = orders.filter((o) => o.status === 'Pending').length;
   const lowStockCount = products.filter((p) => p.stock <= 3).length;
 
-  // File upload reader
+  // File upload reader with automatic client-side compression
   const handleLocalImageUpload = (files: FileList | null, isEdit: boolean) => {
     if (!files || files.length === 0) return;
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        if (!result) return;
+    Array.from(files).forEach(async (file) => {
+      try {
+        const compressedDataUrl = await compressImageFile(file, 1024, 0.78);
+        if (!compressedDataUrl) return;
+
         if (isEdit) {
           setEditingProduct((prev) => {
             if (!prev) return prev;
             const currentImgs = prev.images && prev.images.length > 0 ? [...prev.images] : [prev.imageUrl];
-            const updated = [...currentImgs, result];
+            const updated = [...currentImgs, compressedDataUrl];
             return {
               ...prev,
               imageUrl: updated[0],
@@ -126,7 +135,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         } else {
           setNewProduct((prev) => {
             const currentImgs = prev.images && prev.images.length > 0 ? [...prev.images] : (prev.imageUrl ? [prev.imageUrl] : []);
-            const updated = [...currentImgs, result];
+            const updated = [...currentImgs, compressedDataUrl];
             return {
               ...prev,
               imageUrl: updated[0],
@@ -134,8 +143,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             };
           });
         }
-      };
-      reader.readAsDataURL(file);
+      } catch (err) {
+        console.error('Error compressing uploaded image:', err);
+      }
     });
   };
 
@@ -154,7 +164,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const created: Product = {
       id: `prod-${Date.now()}`,
       name: newProduct.name || 'New Collection Dress',
-      category: (newProduct.category as any) || 'Stitched',
+      category: (newProduct.category as any) || '3 pcs',
       price: Number(newProduct.price),
       originalPrice: newProduct.originalPrice ? Number(newProduct.originalPrice) : undefined,
       stock: Number(newProduct.stock) || 10,
@@ -171,7 +181,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setIsAddingProduct(false);
     setNewProduct({
       name: '',
-      category: 'Stitched',
+      category: '3 pcs',
       price: 0,
       originalPrice: 0,
       stock: 10,
@@ -207,9 +217,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     showNotice(`"${updatedProduct.name}" সফলভাবে আপডেট করা হয়েছে!`);
   };
 
-  const handleDeleteProduct = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this product?')) {
-      onUpdateProducts(products.filter((p) => p.id !== id));
+  const handleDeleteProduct = (productOrId: Product | string) => {
+    if (typeof productOrId === 'string') {
+      const found = products.find((p) => p.id === productOrId);
+      if (found) {
+        setProductToDelete(found);
+      } else {
+        if (onDeleteProduct) {
+          onDeleteProduct(productOrId);
+        } else {
+          onUpdateProducts(products.filter((p) => p.id !== productOrId));
+        }
+      }
+    } else {
+      setProductToDelete(productOrId);
+    }
+  };
+
+  const handleConfirmDeleteProduct = async () => {
+    if (!productToDelete) return;
+    setIsDeletingProduct(true);
+    const target = productToDelete;
+    try {
+      if (onDeleteProduct) {
+        await onDeleteProduct(target.id, target.name);
+      } else {
+        onUpdateProducts(products.filter((p) => p.id !== target.id));
+      }
+      showNotice(`"${target.name}" সফলভাবে ডিলিট করা হয়েছে!`);
+      setProductToDelete(null);
+    } catch (err) {
+      console.error('Failed to delete product:', err);
+      showNotice('প্রোডাক্ট ডিলিট করতে সমস্যা হয়েছে, আবার চেষ্টা করুন।');
+    } finally {
+      setIsDeletingProduct(false);
     }
   };
 
@@ -226,13 +267,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleDeleteOrder = (orderId: string, orderRef: string) => {
-    if (window.confirm(`Are you sure you want to permanently delete Order ${orderRef}? This action will remove it from the database.`)) {
+    setOrderToDelete({ id: orderId, ref: orderRef });
+  };
+
+  const handleConfirmDeleteOrder = async () => {
+    if (!orderToDelete) return;
+    setIsDeletingOrder(true);
+    const target = orderToDelete;
+    try {
       if (onDeleteOrder) {
-        onDeleteOrder(orderId);
+        await onDeleteOrder(target.id);
       } else {
-        onUpdateOrders(orders.filter((o) => o.id !== orderId && o.orderNumber !== orderId));
+        onUpdateOrders(orders.filter((o) => o.id !== target.id && o.orderNumber !== target.id));
       }
-      showNotice(`Order ${orderRef} deleted successfully.`);
+      showNotice(`Order ${target.ref} সফলভাবে ডিলিট করা হয়েছে!`);
+      setOrderToDelete(null);
+    } catch (err) {
+      console.error('Failed to delete order:', err);
+      showNotice('অর্ডার ডিলিট করতে সমস্যা হয়েছে।');
+    } finally {
+      setIsDeletingOrder(false);
     }
   };
 
@@ -633,7 +687,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                 <Edit2 className="w-4 h-4" />
                               </button>
                               <button
-                                onClick={() => handleDeleteProduct(product.id)}
+                                onClick={() => handleDeleteProduct(product)}
                                 className="p-1.5 rounded-lg text-[#8f8287] hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                                 title="Delete Product"
                               >
@@ -1016,11 +1070,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <select
                     value={newProduct.category}
                     onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value as any })}
-                    className="w-full bg-[#f6f4f2] border border-[#e4e0dc] focus:border-[#745663] focus:bg-white rounded-xl px-3 py-2 text-[#1b1c1c] focus:outline-none"
+                    className="w-full bg-[#f6f4f2] border border-[#e4e0dc] focus:border-[#745663] focus:bg-white rounded-xl px-3 py-2 text-[#1b1c1c] focus:outline-none cursor-pointer"
                   >
-                    <option value="Stitched">Stitched</option>
-                    <option value="Unstitched">Unstitched</option>
+                    <option value="3 pcs">3 pcs</option>
                     <option value="Kids">Kids</option>
+                    <option value="Latest">Latest</option>
                   </select>
                 </div>
                 <div>
@@ -1261,15 +1315,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
 
             <form onSubmit={handleUpdateProduct} className="space-y-3 text-xs">
-              <div>
-                <label className="block font-semibold text-[#1b1c1c] mb-1">Product Title</label>
-                <input
-                  type="text"
-                  required
-                  value={editingProduct.name}
-                  onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
-                  className="w-full bg-[#f6f4f2] border border-[#e4e0dc] focus:border-[#745663] focus:bg-white rounded-xl px-3 py-2 text-[#1b1c1c] focus:outline-none"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-[#1b1c1c] mb-1">Product Title</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingProduct.name}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
+                    className="w-full bg-[#f6f4f2] border border-[#e4e0dc] focus:border-[#745663] focus:bg-white rounded-xl px-3 py-2 text-[#1b1c1c] focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-[#1b1c1c] mb-1">Category</label>
+                  <select
+                    value={editingProduct.category}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, category: e.target.value as any })}
+                    className="w-full bg-[#f6f4f2] border border-[#e4e0dc] focus:border-[#745663] focus:bg-white rounded-xl px-3 py-2 text-[#1b1c1c] focus:outline-none cursor-pointer"
+                  >
+                    <option value="3 pcs">3 pcs</option>
+                    <option value="Kids">Kids</option>
+                    <option value="Latest">Latest</option>
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
@@ -1472,6 +1540,123 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ===================== DELETE PRODUCT CONFIRMATION MODAL ===================== */}
+      {productToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-[#ede8e4] text-center space-y-4 animate-in fade-in zoom-in duration-150">
+            <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="font-playfair text-xl font-bold text-[#1b1c1c]">
+                প্রোডাক্ট ডিলিট করবেন?
+              </h3>
+              <p className="text-xs sm:text-sm text-[#53434b]">
+                আপনি কি নিশ্চিতভাবে এই প্রোডাক্টটি স্থায়ীভাবে মুছে ফেলতে চান? ডাটাবেস ও স্টোরফ্রন্ট থেকেও এটি পুরোপুরি ডিলিট হয়ে যাবে।
+              </p>
+            </div>
+
+            {/* Product Card Preview */}
+            <div className="bg-[#fcfbf9] border border-[#ede8e4] rounded-xl p-3 flex items-center gap-3 text-left">
+              <img
+                src={productToDelete.imageUrl}
+                alt={productToDelete.name}
+                className="w-12 h-14 object-cover rounded-lg shrink-0 border border-[#e4e0dc]"
+              />
+              <div className="min-w-0 flex-1">
+                <h4 className="font-semibold text-xs text-[#1b1c1c] truncate">
+                  {productToDelete.name}
+                </h4>
+                <div className="flex items-center gap-2 text-[11px] text-[#53434b] mt-0.5">
+                  <span className="font-bold text-[#745663]">৳{productToDelete.price}</span>
+                  <span>•</span>
+                  <span>{productToDelete.category}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 flex gap-3">
+              <button
+                type="button"
+                disabled={isDeletingProduct}
+                onClick={() => setProductToDelete(null)}
+                className="flex-1 py-2.5 rounded-full border border-[#e4e0dc] text-[#53434b] font-semibold text-xs sm:text-sm hover:bg-[#f6f4f2] transition-colors cursor-pointer disabled:opacity-50"
+              >
+                বাতিল করুন
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingProduct}
+                onClick={handleConfirmDeleteProduct}
+                className="flex-1 py-2.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs sm:text-sm transition-colors cursor-pointer shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isDeletingProduct ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    <span>ডিলিট হচ্ছে...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>হ্যাঁ, ডিলিট করুন</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================== DELETE ORDER CONFIRMATION MODAL ===================== */}
+      {orderToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-[#ede8e4] text-center space-y-4 animate-in fade-in zoom-in duration-150">
+            <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="font-playfair text-xl font-bold text-[#1b1c1c]">
+                অর্ডার ডিলিট করবেন?
+              </h3>
+              <p className="text-xs sm:text-sm text-[#53434b]">
+                আপনি কি নিশ্চিতভাবে অর্ডার <strong className="text-[#1b1c1c] font-mono">{orderToDelete.ref}</strong> ডাটাবেস থেকে স্থায়ীভাবে মুছে ফেলতে চান?
+              </p>
+            </div>
+
+            <div className="pt-2 flex gap-3">
+              <button
+                type="button"
+                disabled={isDeletingOrder}
+                onClick={() => setOrderToDelete(null)}
+                className="flex-1 py-2.5 rounded-full border border-[#e4e0dc] text-[#53434b] font-semibold text-xs sm:text-sm hover:bg-[#f6f4f2] transition-colors cursor-pointer disabled:opacity-50"
+              >
+                বাতিল করুন
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingOrder}
+                onClick={handleConfirmDeleteOrder}
+                className="flex-1 py-2.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs sm:text-sm transition-colors cursor-pointer shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isDeletingOrder ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    <span>ডিলিট হচ্ছে...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>হ্যাঁ, ডিলিট করুন</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

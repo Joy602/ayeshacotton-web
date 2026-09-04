@@ -29,9 +29,9 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
 
   const categories = [
     { id: 'All', label: 'All Products' },
-    { id: 'Stitched', label: 'Stitched 3-Piece' },
-    { id: 'Unstitched', label: 'Unstitched 3-Piece' },
-    { id: 'Kids', label: 'Kids Wear' },
+    { id: '3 pcs', label: '3 pcs' },
+    { id: 'Kids', label: 'Kids' },
+    { id: 'Latest', label: 'Latest' },
   ];
 
   const filteredProducts = useMemo(() => {
@@ -39,7 +39,23 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
 
     // Filter by category
     if (selectedCategory === 'Latest') {
-      list = list.filter((p) => p.isLatest || p.badge === 'New Arrival');
+      // Prioritize explicitly marked 'Latest' or 'New Arrival' items, then fill from newest catalog items
+      const explicitLatest = list.filter(
+        (p) =>
+          p.category === 'Latest' ||
+          p.isLatest === true ||
+          p.badge === 'New Arrival' ||
+          p.badge === 'Latest'
+      );
+      const seenIds = new Set(explicitLatest.map((p) => p.id));
+      const rest = list.filter((p) => !seenIds.has(p.id));
+
+      // Always take the last/newest 3 products
+      list = [...explicitLatest, ...rest].slice(0, 3);
+    } else if (selectedCategory === '3 pcs' || selectedCategory === '3-Piece') {
+      list = list.filter((p) => p.category === '3 pcs' || (p.category as string) === '3-Piece' || (p.category as string) === 'Stitched' || (p.category as string) === 'Unstitched');
+    } else if (selectedCategory === 'Kids') {
+      list = list.filter((p) => p.category === 'Kids');
     } else if (selectedCategory !== 'All') {
       list = list.filter((p) => p.category === selectedCategory);
     }
@@ -79,26 +95,45 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
       {/* Category Tabs Header */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 sm:gap-4 mb-6 sm:mb-8">
         
-        {/* Category Pills matching the design system */}
-        <div className="flex items-center gap-1.5 sm:gap-2.5 overflow-x-auto no-scrollbar pb-1 md:pb-0 -mx-1 px-1" role="tablist" aria-label="Product categories">
-          {categories.map((cat) => {
-            const isSelected = selectedCategory === cat.id;
-            return (
-              <button
-                key={cat.id}
-                role="tab"
-                aria-selected={isSelected}
-                onClick={() => onSelectCategory(cat.id)}
-                className={`px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-semibold whitespace-nowrap tracking-wide transition-all cursor-pointer ${
-                  isSelected
-                    ? 'bg-[#745663] text-white shadow-xs'
-                    : 'bg-white text-[#53434b] hover:text-[#1b1c1c] hover:bg-[#f6f4f2] border border-[#e4e0dc]'
-                }`}
-              >
-                {cat.label}
-              </button>
-            );
-          })}
+        {/* Category Controls: Mobile Dropdown + Desktop/Tablet Pills */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          {/* Mobile Category Dropdown */}
+          <div className="sm:hidden flex items-center gap-2 bg-white border border-[#e4e0dc] rounded-full px-3 py-1.5 shadow-2xs">
+            <span className="text-xs font-semibold text-[#53434b] shrink-0">Category:</span>
+            <select
+              value={['3 pcs', 'Kids', 'Latest'].includes(selectedCategory) ? selectedCategory : (selectedCategory === 'All' ? 'All' : '3 pcs')}
+              onChange={(e) => onSelectCategory(e.target.value)}
+              aria-label="Select product category"
+              className="flex-1 bg-transparent text-xs font-semibold text-[#1b1c1c] focus:outline-none cursor-pointer"
+            >
+              <option value="All">All Products</option>
+              <option value="3 pcs">3 pcs</option>
+              <option value="Kids">Kids</option>
+              <option value="Latest">Latest</option>
+            </select>
+          </div>
+
+          {/* Category Pills matching the design system */}
+          <div className="hidden sm:flex items-center gap-1.5 sm:gap-2.5 overflow-x-auto no-scrollbar pb-1 md:pb-0 -mx-1 px-1" role="tablist" aria-label="Product categories">
+            {categories.map((cat) => {
+              const isSelected = selectedCategory === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  role="tab"
+                  aria-selected={isSelected}
+                  onClick={() => onSelectCategory(cat.id)}
+                  className={`px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-semibold whitespace-nowrap tracking-wide transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-[#745663] text-white shadow-xs'
+                      : 'bg-white text-[#53434b] hover:text-[#1b1c1c] hover:bg-[#f6f4f2] border border-[#e4e0dc]'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Sort selector */}
@@ -171,7 +206,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
 
                   {/* Tag / Badge */}
                   <div className="absolute top-1.5 left-1.5 sm:top-2.5 sm:left-2.5 bg-white/95 backdrop-blur-md px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[9px] sm:text-[11px] font-bold text-[#745663] border border-[#fcd4e4] shadow-2xs max-w-[80%] truncate">
-                    {product.badge || product.category}
+                    {selectedCategory === 'Latest' ? (product.badge || 'Latest') : (product.badge || product.category)}
                   </div>
 
                   {/* Multiple Images Indicator Badge */}

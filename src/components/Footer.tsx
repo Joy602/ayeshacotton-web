@@ -84,7 +84,7 @@ export const Footer: React.FC<FooterProps> = ({
               />
             </button>
             <p className="text-xs text-[#53434b] leading-relaxed">
-              Curating luxury 3-piece stitched and unstitched ensembles with delicate handwork, intricate schiffli embroidery, and authentic South Asian textile artistry.
+              Curating luxury 3-piece designer ensembles, kids festive wear, and exclusive latest arrivals with delicate handwork and authentic South Asian textile artistry.
             </p>
           </div>
 
@@ -96,18 +96,10 @@ export const Footer: React.FC<FooterProps> = ({
             <ul className="space-y-2 text-xs text-[#53434b]">
               <li>
                 <button
-                  onClick={() => onSelectCategory('Stitched')}
+                  onClick={() => onSelectCategory('3 pcs')}
                   className="hover:text-[#745663] transition-colors cursor-pointer"
                 >
-                  Stitched 3-Piece Suits
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => onSelectCategory('Unstitched')}
-                  className="hover:text-[#745663] transition-colors cursor-pointer"
-                >
-                  Unstitched Luxury Lawn
+                  3 pcs Collections
                 </button>
               </li>
               <li>
@@ -115,7 +107,7 @@ export const Footer: React.FC<FooterProps> = ({
                   onClick={() => onSelectCategory('Kids')}
                   className="hover:text-[#745663] transition-colors cursor-pointer"
                 >
-                  Kids Festive Wear
+                  Kids Wear
                 </button>
               </li>
               <li>
@@ -123,7 +115,7 @@ export const Footer: React.FC<FooterProps> = ({
                   onClick={() => onSelectCategory('Latest')}
                   className="hover:text-[#745663] transition-colors cursor-pointer"
                 >
-                  New Arrivals 2026
+                  Latest (New Arrivals)
                 </button>
               </li>
             </ul>

@@ -19,6 +19,7 @@ import {
 import { SEOHead } from './components/seo/SEOHead';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
+import { FeaturedCategories } from './components/FeaturedCategories';
 import { LatestProducts } from './components/LatestProducts';
 import { ProductGrid } from './components/ProductGrid';
 import { OrderDrawer } from './components/OrderDrawer';
@@ -29,12 +30,40 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { Footer } from './components/Footer';
 import { ContactModal } from './components/ContactModal';
 import { CustomerAuthModal } from './components/CustomerAuthModal';
+import { safeSetItem, safeRemoveItem } from './lib/safeStorage';
 
 function normalizeProductName(name: string): string {
   return (name || '').trim().toLowerCase();
 }
 
-export function mergeAndDeduplicateProducts(incomingProducts: Product[]): Product[] {
+function getDeletedProductKeys(): Set<string> {
+  try {
+    const raw = localStorage.getItem('ayesha_cotton_deleted_product_keys');
+    if (raw) {
+      const arr: string[] = JSON.parse(raw);
+      return new Set(arr.map((k) => k.toLowerCase().trim()));
+    }
+  } catch {}
+  return new Set();
+}
+
+function recordDeletedProductKey(id: string, name?: string) {
+  try {
+    const current = getDeletedProductKeys();
+    if (id) current.add(id.toLowerCase().trim());
+    if (name) current.add(name.toLowerCase().trim());
+    localStorage.setItem(
+      'ayesha_cotton_deleted_product_keys',
+      JSON.stringify(Array.from(current))
+    );
+  } catch {}
+}
+
+export function mergeAndDeduplicateProducts(
+  incomingProducts: Product[],
+  skipInitialFallback = false
+): Product[] {
+  const deletedKeys = getDeletedProductKeys();
   const initialMapByName = new Map<string, Product>();
   const initialMapById = new Map<string, Product>();
   for (const initP of INITIAL_PRODUCTS) {
@@ -50,6 +79,12 @@ export function mergeAndDeduplicateProducts(incomingProducts: Product[]): Produc
   for (const p of incomingProducts) {
     if (!p || p.id === 'prod-11') continue;
     const nameKey = normalizeProductName(p.name);
+    const idKey = (p.id || '').toLowerCase().trim();
+
+    // Skip if marked as deleted
+    if ((idKey && deletedKeys.has(idKey)) || (nameKey && deletedKeys.has(nameKey))) {
+      continue;
+    }
     
     // Skip if this product name or id is already in our result
     if ((nameKey && seenNames.has(nameKey)) || (p.id && seenIds.has(p.id))) {
@@ -69,21 +104,38 @@ export function mergeAndDeduplicateProducts(incomingProducts: Product[]): Produc
         }
       : p;
 
+    // Enforce strict category normalization to '3 pcs', 'Kids', or 'Latest'
+    const rawCat = String(merged.category || '').trim().toLowerCase();
+    if (rawCat === 'kids' || rawCat === 'kid' || rawCat === 'baby') {
+      merged.category = 'Kids';
+    } else if (rawCat === 'latest' || rawCat === 'new arrival') {
+      merged.category = 'Latest';
+    } else {
+      merged.category = '3 pcs';
+    }
+
     if (nameKey) seenNames.add(nameKey);
     if (merged.id) seenIds.add(merged.id);
     result.push(merged);
   }
 
-  // 2. Add any INITIAL_PRODUCTS that were not present in incomingProducts
-  for (const initP of INITIAL_PRODUCTS) {
-    if (initP.id === 'prod-11') continue;
-    const nameKey = normalizeProductName(initP.name);
-    if (nameKey && seenNames.has(nameKey)) continue;
-    if (initP.id && seenIds.has(initP.id)) continue;
+  // 2. Add INITIAL_PRODUCTS only if not skipping fallback and not deleted
+  if (!skipInitialFallback) {
+    for (const initP of INITIAL_PRODUCTS) {
+      if (initP.id === 'prod-11') continue;
+      const nameKey = normalizeProductName(initP.name);
+      const idKey = (initP.id || '').toLowerCase().trim();
 
-    if (nameKey) seenNames.add(nameKey);
-    if (initP.id) seenIds.add(initP.id);
-    result.push(initP);
+      if ((idKey && deletedKeys.has(idKey)) || (nameKey && deletedKeys.has(nameKey))) {
+        continue;
+      }
+      if (nameKey && seenNames.has(nameKey)) continue;
+      if (initP.id && seenIds.has(initP.id)) continue;
+
+      if (nameKey) seenNames.add(nameKey);
+      if (initP.id) seenIds.add(initP.id);
+      result.push(initP);
+    }
   }
 
   return result;
@@ -92,32 +144,50 @@ export function mergeAndDeduplicateProducts(incomingProducts: Product[]): Produc
 export function App() {
   // Persistence with localStorage & deduplication
   const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('ayesha_cotton_products');
-    if (saved) {
-      try {
+    try {
+      const saved = localStorage.getItem('ayesha_cotton_products');
+      if (saved) {
         const parsed: Product[] = JSON.parse(saved);
-        return mergeAndDeduplicateProducts(parsed);
-      } catch (e) {
-        return INITIAL_PRODUCTS;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return mergeAndDeduplicateProducts(parsed);
+        }
       }
+    } catch (e) {
+      console.warn('Error reading products from localStorage:', e);
     }
     return INITIAL_PRODUCTS;
   });
 
   const [orders, setOrders] = useState<Order[]>(() => {
-    const saved = localStorage.getItem('ayesha_cotton_orders');
-    return saved ? JSON.parse(saved) : INITIAL_ORDERS;
+    try {
+      const saved = localStorage.getItem('ayesha_cotton_orders');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.warn('Error reading orders from localStorage:', e);
+    }
+    return INITIAL_ORDERS;
   });
 
   const [customers, setCustomers] = useState<Customer[]>(() => {
-    const saved = localStorage.getItem('ayesha_cotton_customers');
-    return saved ? JSON.parse(saved) : INITIAL_CUSTOMERS;
+    try {
+      const saved = localStorage.getItem('ayesha_cotton_customers');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.warn('Error reading customers from localStorage:', e);
+    }
+    return INITIAL_CUSTOMERS;
   });
 
   const [settings, setSettings] = useState<StoreSettings>(() => {
-    const saved = localStorage.getItem('ayesha_cotton_settings');
-    if (saved) {
-      try {
+    try {
+      const saved = localStorage.getItem('ayesha_cotton_settings');
+      if (saved) {
         const parsed = JSON.parse(saved);
         if (
           parsed.whatsappNumber === '+8801700000000' ||
@@ -127,16 +197,24 @@ export function App() {
           return { ...parsed, whatsappNumber: '+8801712679721' };
         }
         return parsed;
-      } catch (e) {
-        return INITIAL_SETTINGS;
       }
+    } catch (e) {
+      console.warn('Error reading settings from localStorage:', e);
     }
     return INITIAL_SETTINGS;
   });
 
   const [cart, setCart] = useState<CartItem[]>(() => {
-    const saved = localStorage.getItem('ayesha_cotton_cart');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('ayesha_cotton_cart');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.warn('Error reading cart from localStorage:', e);
+    }
+    return [];
   });
 
   // Current Logged-in Customer
@@ -171,32 +249,46 @@ export function App() {
   const [authPurposeMessage, setAuthPurposeMessage] = useState<string | undefined>(undefined);
   const [notificationMessage, setNotificationMessage] = useState<string | null>(null);
 
-  // Sync to localStorage
+  // Sync to localStorage safely with quota protection
   useEffect(() => {
-    localStorage.setItem('ayesha_cotton_products', JSON.stringify(products));
+    // Strip oversized base64 images from localStorage copy so it never exceeds 5MB browser quota
+    const isLargeBase64 = (str?: string) => typeof str === 'string' && str.startsWith('data:') && str.length > 50000;
+    const sanitizedProducts = products.map((p) => {
+      const imgIsLarge = isLargeBase64(p.imageUrl);
+      const hasLargeGallery = Array.isArray(p.images) && p.images.some(isLargeBase64);
+      if (!imgIsLarge && !hasLargeGallery) return p;
+      return {
+        ...p,
+        imageUrl: imgIsLarge ? 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=80' : p.imageUrl,
+        images: (p.images || []).map((img) =>
+          isLargeBase64(img) ? 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=80' : img
+        ),
+      };
+    });
+    safeSetItem('ayesha_cotton_products', sanitizedProducts);
   }, [products]);
 
   useEffect(() => {
-    localStorage.setItem('ayesha_cotton_orders', JSON.stringify(orders));
+    safeSetItem('ayesha_cotton_orders', orders);
   }, [orders]);
 
   useEffect(() => {
-    localStorage.setItem('ayesha_cotton_customers', JSON.stringify(customers));
+    safeSetItem('ayesha_cotton_customers', customers);
   }, [customers]);
 
   useEffect(() => {
-    localStorage.setItem('ayesha_cotton_settings', JSON.stringify(settings));
+    safeSetItem('ayesha_cotton_settings', settings);
   }, [settings]);
 
   useEffect(() => {
-    localStorage.setItem('ayesha_cotton_cart', JSON.stringify(cart));
+    safeSetItem('ayesha_cotton_cart', cart);
   }, [cart]);
 
   useEffect(() => {
     if (currentUser) {
-      localStorage.setItem('ayesha_cotton_current_user', JSON.stringify(currentUser));
+      safeSetItem('ayesha_cotton_current_user', currentUser);
     } else {
-      localStorage.removeItem('ayesha_cotton_current_user');
+      safeRemoveItem('ayesha_cotton_current_user');
     }
   }, [currentUser]);
 
@@ -212,7 +304,7 @@ export function App() {
         ]);
         if (isMounted) {
           if (liveProducts && liveProducts.length > 0) {
-            const merged = mergeAndDeduplicateProducts(liveProducts);
+            const merged = mergeAndDeduplicateProducts(liveProducts, true);
             setProducts(merged);
           }
           if (liveOrders && liveOrders.length > 0) {
@@ -234,24 +326,49 @@ export function App() {
 
   // Product update & sync with Supabase
   const handleUpdateProducts = async (newProducts: Product[]) => {
+    // Detect any removed products so that deletions also sync to Supabase
+    const newIds = new Set(newProducts.map((p) => p.id));
+    const newNames = new Set(newProducts.map((p) => (p.name || '').trim().toLowerCase()));
+    const removedProducts = products.filter(
+      (p) => !newIds.has(p.id) && !newNames.has((p.name || '').trim().toLowerCase())
+    );
+
+    for (const rem of removedProducts) {
+      recordDeletedProductKey(rem.id, rem.name);
+    }
+
     setProducts(newProducts);
-    // Find newly added or updated product to sync with Supabase
+
     try {
+      // Sync deletions to Supabase
+      for (const rem of removedProducts) {
+        deleteProductFromSupabase(rem.id, rem.name);
+      }
+      // Sync added/updated
       for (const p of newProducts) {
-        // Asynchronously sync
         saveProductToSupabase(p);
       }
     } catch (e) {
-      console.warn('Failed to sync product to Supabase:', e);
+      console.warn('Failed to sync product changes to Supabase:', e);
     }
   };
 
-  const handleDeleteProduct = async (productId: string) => {
-    setProducts((prev) => prev.filter((p) => p.id !== productId));
+  const handleDeleteProduct = async (productId: string, productName?: string) => {
+    // Record deletion so it never gets resurrected by initial fallback
+    recordDeletedProductKey(productId, productName);
+    // Remove from cart if present
+    setCart((prev) =>
+      prev.filter((item) => item.product.id !== productId && item.product.name !== productName)
+    );
+    // Remove from product list
+    setProducts((prev) =>
+      prev.filter((p) => p.id !== productId && p.name !== productName)
+    );
     try {
-      await deleteProductFromSupabase(productId);
+      return await deleteProductFromSupabase(productId, productName);
     } catch (e) {
       console.warn('Failed to delete product from Supabase:', e);
+      return { success: false, error: e };
     }
   };
 
@@ -472,6 +589,7 @@ export function App() {
           customers={customers}
           settings={settings}
           onUpdateProducts={handleUpdateProducts}
+          onDeleteProduct={handleDeleteProduct}
           onUpdateOrders={setOrders}
           onUpdateOrderStatus={handleUpdateOrderStatus}
           onDeleteOrder={handleDeleteOrder}
@@ -483,6 +601,16 @@ export function App() {
           
           {/* Hero Section */}
           <Hero onShopClick={handleScrollToShop} />
+
+          {/* Featured Category Cards (3 pcs, Kids, Latest) */}
+          <FeaturedCategories
+            products={products}
+            selectedCategory={selectedCategory}
+            onSelectCategory={(cat) => {
+              setSelectedCategory(cat);
+              handleScrollToShop();
+            }}
+          />
 
           {/* Latest Arrivals Drop */}
           <LatestProducts
